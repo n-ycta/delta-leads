@@ -1,7 +1,14 @@
 import { SourceError } from './errors.mjs';
 export async function request(
   url,
-  { fetcher = fetch, timeout = 15000, maxBytes = 2 * 1024 * 1024, ...options } = {},
+  {
+    fetcher = fetch,
+    timeout = 15000,
+    maxBytes = 2 * 1024 * 1024,
+    allowHttpError = false,
+    onResponse,
+    ...options
+  } = {},
 ) {
   let response;
   try {
@@ -13,7 +20,8 @@ export async function request(
   } catch {
     throw new SourceError('network_error');
   }
-  if (!response.ok) {
+  onResponse?.(response);
+  if (!response.ok && !allowHttpError) {
     await response.body?.cancel();
     const raw = response.headers.get('retry-after');
     const retryAfter = /^\d+$/.test(raw || '')

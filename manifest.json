@@ -1,12 +1,12 @@
 {
   "id": "leads",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.2+.",
   "metadata": {
     "ui": {
       "id": "dev.delta.leads",
       "name": "Delta Leads",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "contract": "^1.6.0",
       "publisher": "n-ycta",
       "description": "Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.2+.",
@@ -663,6 +663,18 @@
               "label": "Illustration & design"
             }
           ]
+        },
+        {
+          "group": "Notifications",
+          "key": "notificationTimezone",
+          "type": "string",
+          "label": "Telegram timezone",
+          "default": "UTC",
+          "help": "IANA timezone, for example Asia/Yekaterinburg or Europe/Berlin. Dates include this timezone explicitly.",
+          "visibleWhen": {
+            "key": "telegramEnabled",
+            "equals": true
+          }
         }
       ],
       "actions": [
@@ -1437,6 +1449,12 @@
                   "label": "Иллюстрация и дизайн"
                 }
               ]
+            },
+            {
+              "key": "notificationTimezone",
+              "label": "Часовой пояс Telegram",
+              "group": "Уведомления",
+              "help": "Часовой пояс IANA: например Asia/Yekaterinburg или Europe/Berlin. Он явно указывается рядом с датой."
             }
           ],
           "actions": [
@@ -1960,6 +1978,9 @@
                   "art"
                 ]
               }
+            },
+            "notificationTimezone": {
+              "type": "string"
             }
           }
         },
@@ -2348,6 +2369,9 @@
                   "art"
                 ]
               }
+            },
+            "notificationTimezone": {
+              "type": "string"
             }
           }
         },
@@ -2553,6 +2577,9 @@
                   "art"
                 ]
               }
+            },
+            "notificationTimezone": {
+              "type": "string"
             }
           }
         },

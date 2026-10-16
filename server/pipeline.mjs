@@ -8,7 +8,7 @@ import { Store, atomicJson } from './state.mjs';
 import { defaults, parseSettings, publicSettings, lines } from './settings.mjs';
 import { classify, analyze, analyzeBatch, textOf } from './classifier.mjs';
 import { createConnectors, normalize } from './connectors.mjs';
-import { sendTelegram } from './telegram.mjs';
+import { sendTelegram, isTelegramConnectionError } from './telegram.mjs';
 import { DeltaError, safeError } from './errors.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 export class Pipeline {
@@ -50,6 +50,13 @@ export class Pipeline {
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
     }
+    if (
+      this.store.data.telegramBlocked &&
+      !this.store.data.posts.some(
+        (p) => p.delivery?.state === 'failed' && isTelegramConnectionError(p.delivery.error),
+      )
+    )
+      delete this.store.data.telegramBlocked;
     this.reconcileQueue();
     await this.store.save();
     return this;
@@ -200,7 +207,7 @@ export class Pipeline {
           if (
             p.verdict === 'lead' &&
             p.delivery?.state === 'failed' &&
-            ['http_401', 'http_403'].includes(p.delivery.error)
+            isTelegramConnectionError(p.delivery.error)
           )
             p.delivery.state = 'pending';
       }
@@ -630,9 +637,10 @@ export class Pipeline {
               ),
           };
           if (e.retryAfter) this.store.data.telegramRetryAt = p.delivery.nextAt;
-          if (e.permanent) this.store.data.telegramBlocked = true;
+          const connectionFailure = isTelegramConnectionError(safeError(e));
+          if (connectionFailure) this.store.data.telegramBlocked = true;
           await this.store.save();
-          if (e.retryAfter || e.permanent) break;
+          if (e.retryAfter || connectionFailure) break;
         }
         await this.sleep(1100);
       }

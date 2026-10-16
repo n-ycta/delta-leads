@@ -1,8 +1,7 @@
-Delta Leads 0.1.3 — persistent delivery, clickable lead tables and conditional settings. Update Delta Web to **0.6.2+** first (UI contract 1.6).
+Delta Leads 0.1.4 — readable Telegram messages and safer delivery. Recommended companion: Delta Web 0.6.4.
 
-- Every accepted lead is persisted in the delivery queue, including leads discovered before Telegram was configured. Enabling Telegram picks up still-fresh unsent leads; legacy `disabled` records migrate automatically. Expired leads are not sent, and recorded sent messages are not replayed.
-- Independent delivery scheduler runs even when discovery is disabled, slow or waiting on a Reddit cooldown. One send worker, durable retries, shared Telegram Retry-After cooldown, and visible waiting/retry/failure states.
-- Authentication failures pause delivery. Changing Telegram connection settings allows a retry of authentication-failed leads. Delivery remains at-least-once: network ambiguity or a crash can still cause a duplicate.
-- A New leads table uses Web's existing Table widget: newest-first posts, clickable post titles, source, verdict, AI confidence/reason and delivery state. Existing saved generated dashboards gain the table without layout reset.
-- Declarative settings branches: AI parallelism only in parallel mode, batch size only in batch mode, OAuth fields only in OAuth mode, and disabled integrations hide irrelevant controls. Hidden values remain saved and return on switching back.
-- Existing private settings, custom prompts, profiles and history are retained. No automatic outreach or access-control bypass.
+- HTML messages with bold headings, separate metadata, preserved paragraphs, quoted excerpts and a one-word inline post link. Untrusted text is escaped and length-bounded before escaping.
+- Localized 24-hour timestamps and a configurable IANA notification timezone (default UTC).
+- One malformed notification no longer pauses the whole queue. Authentication/chat-access errors pause delivery; connection changes allow retry. HTTP 429 respects Telegram JSON retry_after as well as headers.
+- Rule matching requires service terms near the buyer intent in the same request, reducing false positives from unrelated company bios. The AI instructions explicitly exclude unrelated assistant/support/sales jobs. This is a heuristic, not a precision guarantee.
+- Persistent queue, profiles, custom prompts, history and settings are retained. Delivery is at-least-once; an ambiguous network failure can still lead to a duplicate.

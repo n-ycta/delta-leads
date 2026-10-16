@@ -8,6 +8,7 @@ const labels = {
   aiJsonMode: 'Параметр JSON response_format — отключите, если провайдер не поддерживает',
 
   notificationLocale: 'Язык сообщений Telegram',
+  notificationTimezone: 'Часовой пояс Telegram',
   enabled: 'Фоновый поиск включён',
   intervalSec: 'Интервал проверки',
   freshnessHours: 'Максимальный возраст поста',
@@ -113,6 +114,11 @@ export function ruLocalization(ui) {
         ? { options: f.options.map((o) => ({ value: o.value, label: optionRu(o.value, o.label) })) }
         : {}),
       ...(f.unit ? { unit: { s: 'с', h: 'ч', days: 'дней' }[f.unit] || f.unit } : {}),
+      ...(f.key === 'notificationTimezone'
+        ? {
+            help: 'Часовой пояс IANA: например Asia/Yekaterinburg или Europe/Berlin. Он явно указывается рядом с датой.',
+          }
+        : {}),
       ...(f.key === 'telegramChatId'
         ? {
             help: 'ID вашего чата или группы. Сначала нажмите Start у бота. Это получатель, а не отправитель.',
@@ -298,6 +304,8 @@ const messages = {
   'Language not selected': 'Язык не выбран',
   'Blocked author': 'Заблокированный автор',
   'No matching service': 'Услуга не найдена',
+  'Service mention is not connected to buyer intent':
+    'Упоминание услуги не связано с намерением заказать',
   'No explicit buyer intent': 'Нет явного намерения заказать',
   'Waiting for next AI budget': 'Ожидает следующего лимита вызовов нейросети',
 };

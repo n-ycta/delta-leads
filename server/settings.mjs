@@ -234,6 +234,11 @@ for (const field of fields) {
   )
     field.visibleWhen = { key: 'telegramEnabled', equals: true };
 }
+add('Notifications', 'notificationTimezone', 'string', 'Telegram timezone', {
+  default: 'UTC',
+  help: 'IANA timezone, for example Asia/Yekaterinburg or Europe/Berlin. Dates include this timezone explicitly.',
+  visibleWhen: { key: 'telegramEnabled', equals: true },
+});
 export const secrets = fields.filter((f) => f.type === 'secret').map((f) => f.key);
 export const defaults = Object.fromEntries(fields.map((f) => [f.key, f.default ?? '']));
 export const lines = (v) =>
@@ -280,6 +285,11 @@ export function parseSettings(values, current = defaults) {
   for (const key of ['xQueries', 'threadsQueries'])
     if (lines(next[key]).length > 12 || lines(next[key]).some((x) => x.length > 512))
       bad('Use at most 12 source queries, each at most 512 characters');
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: next.notificationTimezone }).format();
+  } catch {
+    bad('Invalid notificationTimezone');
+  }
   if (!lines(next.services).length || !lines(next.buyerTerms).length)
     bad('Service and buyer-intent terms must not be empty');
   if (next.subreddits && !next.subreddits.split(',').every((s) => /^[\w]{2,50}$/.test(s.trim())))

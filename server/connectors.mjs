@@ -2,8 +2,9 @@ import { XMLParser } from 'fast-xml-parser';
 import { json, request } from './net.mjs';
 import { SourceError } from './errors.mjs';
 const UA = 'delta-leads/0.1.0';
-const decode = (s) =>
+const decode = (s, multiline = false) =>
   String(s ?? '')
+    .replace(/<(?:br\s*\/?|\/?(?:p|div|li|blockquote))\s*>/gi, multiline ? '\n' : ' ')
     .replace(/<[^>]*>/g, ' ')
     .replace(
       /&(?:amp|lt|gt|quot|apos|#39|#x27);/g,
@@ -18,7 +19,9 @@ const decode = (s) =>
           '&#x27;': "'",
         })[x],
     )
-    .replace(/\s+/g, ' ')
+    .replace(multiline ? /[^\S\n]+/g : /\s+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 export function canonicalUrl(source, value) {
   try {
@@ -49,7 +52,7 @@ export function normalize(source, item) {
     source,
     url,
     title: decode(item.title).slice(0, 1000),
-    text: decode(item.text).slice(0, 16000),
+    text: decode(item.text, true).slice(0, 16000),
     author: decode(item.author).slice(0, 100),
     community: decode(item.community).slice(0, 100),
     createdAt,

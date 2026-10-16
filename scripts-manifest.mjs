@@ -94,7 +94,7 @@ actions.push(
 const ui = {
   id: 'dev.delta.leads',
   name: 'Delta Leads',
-  version: '0.1.3',
+  version: '0.1.4',
   contract: '^1.6.0',
   publisher: 'n-ycta',
   description:
@@ -309,7 +309,7 @@ const params = {
 };
 const manifest = {
   id: 'leads',
-  version: '0.1.3',
+  version: '0.1.4',
   description: ui.description,
   metadata: { ui },
   capabilities: names.map((name) => ({

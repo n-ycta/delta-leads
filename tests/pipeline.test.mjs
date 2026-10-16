@@ -363,3 +363,24 @@ test('independent delivery scheduler drains while discovery is disabled', async 
     await p.stop();
   }
 });
+
+test('one permanently malformed post does not block other Telegram deliveries', async (t) => {
+  let sends = 0;
+  const p = await fixture(t, {
+    telegram: async () => {
+      if (++sends === 1) throw new SourceError('telegram_400', { permanent: true });
+      return { messageId: sends };
+    },
+    connectors: { reddit: { search: async () => ({ posts: [post(), post('2')], cursor: null }) } },
+  });
+  await p.configure({
+    telegramEnabled: true,
+    telegramBotToken: '123:secret',
+    telegramChatId: '42',
+  });
+  await p.scan();
+  assert.equal(sends, 2);
+  assert.equal(p.store.data.posts[0].delivery.state, 'failed');
+  assert.equal(p.store.data.posts[1].delivery.state, 'sent');
+  assert(!p.store.data.telegramBlocked);
+});

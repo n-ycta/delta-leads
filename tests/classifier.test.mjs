@@ -177,3 +177,30 @@ for (const title of [
   test('generic looking-for is not a buying signal: ' + title, () =>
     assert.notEqual(classify(post(title), defaults, now).verdict, 'lead'),
   );
+
+test('company bio service terms do not turn an unrelated assistant vacancy into a development lead', () => {
+  const p = post(
+    '[Hiring] Virtual Assistant — Remote, USA | $20/hour | 10 hours/week',
+    "We're hiring a part-time virtual assistant to manage client messages. About Wonuva: we build AI automation, websites and cloud infrastructure. We're looking for someone to help keep client communication organized and meetings running smoothly.",
+  );
+  assert.equal(classify(p, defaults, now).verdict, 'irrelevant');
+  assert.equal(
+    classify(
+      post(
+        'Need help',
+        'We build automation and websites. Looking for someone to manage our calendars.',
+      ),
+      defaults,
+      now,
+    ).verdict,
+    'irrelevant',
+  );
+  assert.equal(
+    classify(
+      post('Need help', 'Looking for someone to build a website and automate orders.'),
+      defaults,
+      now,
+    ).verdict,
+    'lead',
+  );
+});

@@ -134,7 +134,7 @@ test('rate limit and response limits preserve safe error codes', async () => {
     (e) => e.code === 'response_too_large',
   );
 });
-test('Telegram uses plain text and validated inline URL; credentials never appear in result', async () => {
+test('Telegram uses escaped HTML and validated inline URL; credentials never appear in result', async () => {
   let body;
   const p = {
     title: '<script>alert()</script>',
@@ -154,7 +154,9 @@ test('Telegram uses plain text and validated inline URL; credentials never appea
       },
     },
   );
-  assert(!body.parse_mode);
+  assert.equal(body.parse_mode, 'HTML');
+  assert(body.text.includes('&lt;script&gt;'));
+  assert(!body.text.includes('<script>'));
   assert.equal(body.chat_id, '42');
   assert.equal(body.reply_markup.inline_keyboard[0][0].url, p.url);
   assert.deepEqual(r, { messageId: 8 });
@@ -166,8 +168,8 @@ test('Telegram uses plain text and validated inline URL; credentials never appea
 
 test('Telegram notification language controls labels and inline button', async () => {
   for (const [locale, label] of [
-    ['ru', 'Открыть пост'],
-    ['en', 'Open post'],
+    ['ru', 'Открыть'],
+    ['en', 'Open'],
   ]) {
     let body;
     await sendTelegram(
@@ -193,6 +195,6 @@ test('Telegram notification language controls labels and inline button', async (
       },
     );
     assert.equal(body.reply_markup.inline_keyboard[0][0].text, label);
-    assert.match(body.text, locale === 'ru' ? /Правила:/ : /Rules:/);
+    assert.match(body.text, locale === 'ru' ? /Правила:<\/b>/ : /Rules:<\/b>/);
   }
 });

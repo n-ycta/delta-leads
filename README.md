@@ -104,3 +104,9 @@ Additional APIs: `leads.validate_ai({values?})`, `leads.validate_telegram({value
 ### Conditional controls and lead table (Web 0.6.2+)
 
 Settings show only the controls relevant to the selected integration/mode. Parallel request count and JSON batch size are mutually exclusive. Switching modes preserves saved values and the form draft. The generated dashboard uses the existing Table widget with clickable HTTPS post titles, newest-first records, verdicts and Telegram status; saved layouts are not reset.
+
+### Telegram formatting / Формат уведомлений
+
+Messages preserve post paragraphs and use escaped Telegram HTML, a quoted excerpt, readable localized time and an inline Open/Открыть link. Set `notificationTimezone` to an IANA zone such as `Asia/Yekaterinburg` (default `UTC`).
+
+Уведомления сохраняют абзацы, используют безопасное HTML-форматирование, цитату и кнопку «Открыть». Часовой пояс задаётся параметром `notificationTimezone`, например `Asia/Yekaterinburg`; по умолчанию — `UTC`. Ошибка одного сообщения не останавливает остальные; ошибки доступа к боту/чату приостанавливают очередь до исправления подключения.
