@@ -19,6 +19,9 @@ const cols = (list) =>
     key,
     label,
     type,
+    ...({ title: 300, reason: 320, score: 100, confidence: 120 }[key]
+      ? { width: { title: 300, reason: 320, score: 100, confidence: 120 }[key] }
+      : {}),
     ...(urlKey ? { urlKey } : {}),
   }));
 const actions = [

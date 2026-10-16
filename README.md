@@ -1,5 +1,7 @@
 # Delta Leads
 
+**[English](README.md) · [Русский](README.ru.md)**
+
 Temporary personal lead-search plugin for [Delta](https://github.com/n-ycta/delta). No plugin-specific code in Delta Web and no core patch. Designed to split into `delta-connect` and `delta-flow` later.
 
 **RU/EN buyers, not service ads.** Searches automation, websites/landing pages, bots, scripts, scrapers and API integrations. Combines explicit buyer-intent phrases with service keywords, excludes sellers/competitors, checks freshness, deduplicates posts and optionally asks an AI model for a final verdict.
@@ -16,16 +18,17 @@ Temporary personal lead-search plugin for [Delta](https://github.com/n-ycta/delt
 
 API equivalent: `delta call packages.install --json '{"id":"dev.delta.leads"}'`. Then manage the plugin through capabilities; all private-content and configuration endpoints require owner/admin or an explicit `admin:leads.*` grant.
 
-## Как настроить под себя
+## Tune your search
 
-- **queries**: до 12 запросов, по одному на строку. Это синтаксис выбранной сети, не универсальный поисковый язык.
-- **services / buyerTerms / sellerTerms / excludedTerms**: редактируемые списки фраз. Английские короткие слова ограничены границами слов; русские основы допускают окончания.
-- **subreddits**: стартовый набор `forhire, slavelabour, freelance_forhire, Entrepreneur, smallbusiness`. Пустое значение — поиск по всему Reddit. Это не гарантия доступности конкретного сообщества.
-- **freshnessHours**: 1–168 часов; **intervalSec**: от 60 секунд. Интервал — минимальная пауза между началами проверок; длительные проверки не перекрываются.
-- **xQueries / threadsQueries**: собственные запросы для API этих сетей. Threads использует обычные ключевые фразы, не Reddit Boolean DSL.
-- **profile / aiMinConfidence**: ваши услуги и порог AI. Низкая уверенность → `uncertain`, сбой модели → `pending_ai`, а не сообщение в Telegram.
-- **Review a lead**: сохраните `relevant`, `false_positive`, `contacted` или `won`, указав ID из таблицы. Это ручная обратная связь, не скрытое самообучение.
-- **Test matching rules**: проверка текста без отправки и без вызова AI. AI-вердикт для реальных кандидатов виден отдельно.
+- **queries**: up to 12 queries, one per line. Syntax belongs to the selected social network, not to a fictional universal query language.
+- **services / buyerTerms / sellerTerms / excludedTerms**: editable phrase lists. Latin terms use word boundaries; Russian stems allow inflections.
+- **subreddits**: preset `forhire, slavelabour, freelance_forhire, Entrepreneur, smallbusiness`. Empty = all Reddit. No individual community availability is guaranteed.
+- **freshnessHours**: 1–168 hours; **intervalSec**: at least 60 seconds. Long-running scans never overlap.
+- **xQueries / threadsQueries**: source-specific queries. Threads takes ordinary keyword phrases, not Reddit Boolean syntax.
+- **profile / aiMinConfidence**: your services and model threshold. Low confidence means `uncertain`; provider failure means `pending_ai`, never an alert.
+- **notificationLocale**: Telegram message and inline-button language, English or Russian. Web text follows the console's language selector.
+- **Review a lead**: record `relevant`, `false_positive`, `contacted` or `won` using its ID from the table. This is manual feedback, not undisclosed automatic training.
+- **Test matching rules**: preview text without sending notifications or calling AI. Real candidate AI verdicts are displayed separately.
 
 ## Sources / access methods
 
@@ -69,7 +72,7 @@ All calls use the core `/v1/call` boundary. Component ID: `leads`, UI ID: `dev.d
 
 ## State and security
 
-`DATA_DIR` contains private `settings.json` and `state.json`. Writes use serialized atomic replacement, owner-only files (0600) and directory (0700) on POSIX. On Windows use a private user-profile directory and appropriate account ACLs. Secrets are stored locally in plaintext for runtime use, **not encrypted at rest**; do not put this directory in Git or expose it via HTTP. Raw response bodies and credentials are not logged or returned as errors. State keeps at most 5,000 post records, 30,000 seen keys and 3,000 scan buckets, within the selected 1–90 day retention. Lifetime counters survive pruning; chart history is retained scan history, so older/high-frequency buckets may be truncated by the cap.
+`DATA_DIR` contains private `settings.json` and `state.json`. Writes use serialized atomic replacement, owner-only files (0600) and directory (0700) on POSIX. On Windows use a private user-profile directory and appropriate account ACLs. Secrets are stored locally in plaintext for runtime use, **not encrypted at rest**; do not put this directory in Git or expose it via HTTP. Raw response bodies and credentials are not logged or returned as errors. State is pruned on scans and keeps at most 5,000 post records, 30,000 seen keys and 3,000 scan buckets, within the selected 1–90 day retention. Lifetime counters survive pruning; chart history is retained scan history, so older/high-frequency buckets may be truncated by the cap.
 
 The plugin is a standard Delta process, not a sandbox: it needs outbound HTTPS and local data-directory write access. It does not have storage/system/token administration privileges. AI base URLs are owner-configured; HTTPS is required except for localhost HTTP. Do not point the AI client at an untrusted endpoint or give it a provider key that endpoint should not receive.
 

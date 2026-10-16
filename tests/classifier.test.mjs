@@ -169,3 +169,11 @@ test('RU localization covers every setting, help, option and view; identifiers s
       );
   }
 });
+
+for (const title of [
+  'Looking for website templates for my business',
+  'Looking for Python scripts to learn from',
+])
+  test('generic looking-for is not a buying signal: ' + title, () =>
+    assert.notEqual(classify(post(title), defaults, now).verdict, 'lead'),
+  );
