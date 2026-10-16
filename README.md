@@ -8,7 +8,7 @@ Temporary personal lead-search plugin for [Delta](https://github.com/n-ycta/delt
 
 ## Install / quick start
 
-1. Update **Delta Web to 0.6.2+** (UI contract 1.5).
+1. Use a current compatible **Delta Web** or **Delta Desktop** host (UI contract 1.5). Web 0.6.8 or later includes the explicit browser sign-in flow.
 2. In **Plugins → Delta Leads → Install**, choose your node. The official catalog installs a checksum-verified release and a scoped supervisor component. No manually pasted Delta admin token is needed.
 3. Open **Settings**. The RU/EN freelance preset is already loaded. Default source: Reddit RSS, every 5 minutes, posts no older than 24 hours. Searching runs on the node even when the browser is closed.
 4. In **Telegram**, set your **bot token** and **recipient chat ID**, then enable delivery. Open the bot and press **Start** first. Use **Send** in the action menu. Bot credentials are secret inputs, never bundled in the plugin or returned in API responses.
@@ -111,3 +111,8 @@ Messages preserve post paragraphs and use escaped Telegram HTML, a quoted excerp
 
 
 Messages preserve paragraphs, use escaped HTML, and show the configured IANA timezone. A malformed notification does not stop other queued leads; bot/chat access failures pause delivery until the connection is corrected.
+
+## Web and native clients
+
+This is an independent Core plugin, not code embedded in a particular frontend. Compatible Web/Desktop clients discover its manifest and API through the node. A phone can manage a trusted paired desktop/VPS node; it does not run local npm plugins or desktop input collectors. Choose the service/source node explicitly and review the permissions before installation. Missing capabilities remain unavailable rather than being simulated.
+
