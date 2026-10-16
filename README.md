@@ -8,12 +8,12 @@ Temporary personal lead-search plugin for [Delta](https://github.com/n-ycta/delt
 
 ## Install / quick start
 
-1. Update **Delta Web to 0.6.0+** (UI contract 1.5).
+1. Update **Delta Web to 0.6.1+** (UI contract 1.5).
 2. In **Plugins → Delta Leads → Install**, choose your node. The official catalog installs a checksum-verified release and a scoped supervisor component. No manually pasted Delta admin token is needed.
 3. Open **Settings**. The RU/EN freelance preset is already loaded. Default source: Reddit RSS, every 5 minutes, posts no older than 24 hours. Searching runs on the node even when the browser is closed.
-4. In **Telegram**, set your **bot token** and **recipient chat ID**, then enable delivery. Open the bot and press **Start** first. Use **Test Telegram** in the action menu. Bot credentials are secret inputs, never bundled in the plugin or returned in API responses.
+4. In **Telegram**, set your **bot token** and **recipient chat ID**, then enable delivery. Open the bot and press **Start** first. Use **Send** in the action menu. Bot credentials are secret inputs, never bundled in the plugin or returned in API responses.
 5. In **AI verdict**, optionally enable your OpenAI-compatible provider, set its base URL/model/key, your service profile and confidence threshold. A local model can use `http://127.0.0.1:11434/v1`. Public post text is sent to this configured provider only if AI is enabled.
-6. Run **Check now**. In the overview, inspect **Posts & verdicts** and **Source health & coverage**. The scan action returns immediately; scanning itself continues in the background.
+6. Run **Scan**. In the overview, inspect **Posts & verdicts** and **Source health & coverage**. The scan action returns immediately; scanning itself continues in the background.
 7. Open the generated plugin dashboard for unique checked posts, accepted leads, competitors, excluded posts and Telegram delivery over time. The console inbox receives accepted leads independently of Telegram.
 
 API equivalent: `delta call packages.install --json '{"id":"dev.delta.leads"}'`. Then manage the plugin through capabilities; all private-content and configuration endpoints require owner/admin or an explicit `admin:leads.*` grant.
@@ -88,3 +88,15 @@ npm start
 ```
 
 See [architecture and review](docs/ARCHITECTURE.md) and [verification](docs/VERIFICATION.md). No real bot/provider credentials belong in tests or fixtures.
+
+## Profiles and diagnostics (0.1.2)
+
+Open **Settings → Profiles**, select one or more specializations, then **Preview**. Each checkbox authorizes replacement of that field; unchecked fields keep your values. Previously customized fields are not preselected; the AI prompt is always protected by default. Reopen Profiles to reset individual fields to the merged profile. **Apply** changes only the form; **Save** persists it. Profile ordering is deterministic; duplicate lines are removed. No credentials or notification settings are overwritten by profiles.
+
+The **AI** and **Telegram** settings buttons validate the current draft without saving it. AI performs one actual structured completion (potentially billable), not just a model-list request; it reports the verdict/confidence. Telegram checks getMe/getChat; **Send** separately verifies message delivery. A successful getChat does not guarantee future delivery.
+
+Choose AI **sequential**, **parallel** (1–8 concurrent single-post requests), or **batch** (1–10 posts per JSON request). `maxAiPerScan` limits HTTP model calls, not posts; batch mode can analyze at most budget × batch-size posts. JSON batches require exactly one valid result per input ID; duplicate, foreign or missing IDs reject the batch. Provider 429/authorization failures pause the shared AI queue across scans/restarts; replacing the key, URL or model clears that AI cooldown. Disable `aiJsonMode` if your compatible provider does not support response_format. Interactive validation uses a maximum 25-second timeout.
+
+**Diagnose** is a read-only last-24h sample: first query, first page, per enabled source, optionally one AI candidate per source. It shares the scan lock, respects cooldowns and does not save leads or send notifications. Watch **Diagnostics** for results. Normal scheduled searches remain controlled separately by Enabled.
+
+Additional APIs: `leads.validate_ai({values?})`, `leads.validate_telegram({values?})`, `leads.diagnose({ai?:boolean})`, `leads.diagnostics({_locale?})`, `leads.profiles({ids:[...]})` (preview only; apply selected values with leads.settings). Validation returns `{ok, ...}` with a safe diagnostic code/message on failure. Omitted secret values reuse saved credentials; an explicit empty secret clears it on Save. Full parameter schemas are published in the core catalog for MCP clients.

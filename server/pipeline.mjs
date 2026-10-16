@@ -1,10 +1,12 @@
+import { validateAI, validateTelegram, diagnosticMessage } from './diagnostics.mjs';
+import { profiles, mergeProfiles } from './profiles.mjs';
 import { statusLabel, messageFor } from './localization.mjs';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Store, atomicJson } from './state.mjs';
 import { defaults, parseSettings, publicSettings, lines } from './settings.mjs';
-import { classify, analyze, textOf } from './classifier.mjs';
+import { classify, analyze, analyzeBatch, textOf } from './classifier.mjs';
 import { createConnectors, normalize } from './connectors.mjs';
 import { sendTelegram } from './telegram.mjs';
 import { DeltaError, safeError } from './errors.mjs';
@@ -15,6 +17,7 @@ export class Pipeline {
     {
       connectors = createConnectors(),
       ai = analyze,
+      aiBatch = analyzeBatch,
       telegram = sendTelegram,
       now = Date.now,
       sleep = wait,
@@ -25,6 +28,8 @@ export class Pipeline {
     this.settings = { ...defaults };
     this.connectors = connectors;
     this.ai = ai;
+    this.aiBatch = aiBatch;
+    this.diagnostic = { running: false, rows: [] };
     this.telegram = telegram;
     this.now = now;
     this.sleep = sleep;
@@ -45,11 +50,146 @@ export class Pipeline {
     }
     return this;
   }
+  async validate(kind, values = {}, locale = 'en') {
+    const s = parseSettings(values, this.settings);
+    try {
+      if (kind === 'ai') return await validateAI(s);
+      if (kind === 'telegram') return await validateTelegram(s);
+    } catch (e) {
+      const code = safeError(e);
+      return {
+        ok: false,
+        code,
+        message:
+          e instanceof DeltaError ? messageFor(e.message, locale) : diagnosticMessage(code, locale),
+      };
+    }
+    throw new DeltaError('bad_request', 'Unknown validation target');
+  }
+  profilePreview(ids) {
+    if (!Array.isArray(ids) || !ids.length || ids.some((id) => !profiles.some((p) => p.id === id)))
+      throw new DeltaError('bad_request', 'Choose valid profiles');
+    const values = mergeProfiles(ids);
+    values.queries = lines(values.queries).slice(0, 12).join('\n');
+    return { values, protectedKeys: ['profile'], activeProfiles: ids };
+  }
+  startDiagnostic({ ai = false } = {}) {
+    if (this.running || this.diagnostic.running) return { accepted: false, running: true };
+    this.diagnostic = { running: true, startedAt: this.now(), rows: [] };
+    // A diagnostic shares the scan lock and respects source cooldowns. It never notifies or saves leads.
+    this.running = true;
+    const s = structuredClone(this.settings),
+      now = this.now();
+    s.freshnessHours = 24;
+    void (async () => {
+      try {
+        for (const [name, connector] of Object.entries(this.connectors)) {
+          if (this.stopped || !s[name + 'Enabled']) continue;
+          const row = {
+            source: name,
+            checkedAt: now,
+            count: 0,
+            candidates: 0,
+            verdict: '',
+            error: '',
+          };
+          this.diagnostic.rows.push(row);
+          if (this.store.data.sources[name]?.retryAt > now) {
+            row.error = 'cooldown';
+            continue;
+          }
+          try {
+            const query = lines(s[name + 'Queries'] || s.queries)[0];
+            const result = await connector.search(query, s, { now, cursor: null });
+            const posts = result.posts
+              .map((p) => normalize(name, p))
+              .filter((p) => p && p.createdAt >= now - 86400000 && p.createdAt <= now + 300000);
+            row.count = posts.length;
+            row.query = query;
+            const candidates = posts
+              .map((post) => ({ post, rules: classify(post, s, now) }))
+              .filter((p) => p.rules.verdict === 'lead');
+            row.candidates = candidates.length;
+            if (ai && candidates.length) {
+              const p = candidates[0];
+              if (this.store.data.aiRetryAt > this.now()) {
+                row.verdict = 'pending_ai';
+                row.error = 'ai_cooldown';
+                continue;
+              }
+              try {
+                const verdict = await this.ai(p.post, p.rules, s);
+                row.verdict = verdict.verdict;
+                row.reason = verdict.reason;
+              } catch (e) {
+                row.verdict = 'pending_ai';
+                row.error = safeError(e);
+                if (e.retryAfter || e.permanent) {
+                  this.store.data.aiRetryAt =
+                    this.now() + Math.max(e.permanent ? 3600000 : 60000, e.retryAfter || 0);
+                  await this.store.save();
+                }
+              }
+            } else row.verdict = candidates.length ? 'lead' : 'irrelevant';
+          } catch (e) {
+            row.error = safeError(e);
+            if (e.retryAfter || row.error === 'http_429') {
+              this.store.data.sources[name] = {
+                ...(this.store.data.sources[name] || {}),
+                error: row.error,
+                retryAt: this.now() + Math.max(60000, e.retryAfter || 0),
+              };
+              await this.store.save();
+            }
+          }
+        }
+      } finally {
+        this.diagnostic.running = false;
+        this.diagnostic.finishedAt = this.now();
+        this.running = false;
+      }
+    })().catch((e) => {
+      this.diagnostic.error = safeError(e);
+    });
+    return {
+      accepted: true,
+      running: true,
+      note: 'Sample: first query per enabled source, first page, last 24h; at most one AI call per source; no notifications.',
+    };
+  }
+  diagnosticStatus(locale = 'en') {
+    return {
+      rows: this.diagnostic.rows.map((row) => ({
+        ...row,
+        verdict: statusLabel(row.verdict, locale),
+        reason: messageFor(row.reason, locale),
+        error:
+          row.error === 'cooldown'
+            ? locale === 'ru'
+              ? 'Пауза источника'
+              : 'Source cooldown'
+            : row.error === 'ai_cooldown'
+              ? locale === 'ru'
+                ? 'Пауза AI'
+                : 'AI cooldown'
+              : diagnosticMessage(row.error, locale),
+      })),
+      total: this.diagnostic.rows.length,
+      running: this.diagnostic.running,
+    };
+  }
   async configure(values) {
     const task = this.configTail.then(async () => {
       const next = parseSettings(values, this.settings);
       await atomicJson(join(this.dir, 'settings.json'), next);
+      const aiChanged = ['aiApiKey', 'aiBaseUrl', 'aiModel'].some(
+        (key) => next[key] !== this.settings[key],
+      );
       this.settings = next;
+      if (aiChanged) {
+        delete this.store.data.aiRetryAt;
+        await this.store.save();
+      }
       return publicSettings(next);
     });
     this.configTail = task.catch(() => {});
@@ -62,6 +202,7 @@ export class Pipeline {
       running: this.running,
       lastScanAt: d.lastScanAt,
       lastError: this.lastError,
+      aiRetryAt: this.store.data.aiRetryAt || 0,
       totals: d.totals,
       sources: d.sources,
       notices: [
@@ -81,14 +222,20 @@ export class Pipeline {
             id: 'leads.source.' + source,
             severity: 'warn',
             message:
-              source + ': ' + v.error + '; next attempt ' + new Date(v.retryAt).toISOString(),
+              source +
+              ': ' +
+              (v.error === 'http_429' ? 'Rate limit reached. Search paused' : v.error) +
+              '; retry in ' +
+              Math.max(1, Math.ceil((v.retryAt - this.now()) / 60000)) +
+              ' min',
             localizations: {
               ru:
                 source +
                 ': ' +
-                v.error +
-                '; следующая попытка ' +
-                new Date(v.retryAt).toISOString(),
+                (v.error === 'http_429' ? 'Лимит запросов. Поиск приостановлен' : v.error) +
+                '; повтор через ' +
+                Math.max(1, Math.ceil((v.retryAt - this.now()) / 60000)) +
+                ' мин',
             },
           })),
         ...(!this.settings.telegramEnabled
@@ -135,6 +282,7 @@ export class Pipeline {
       aiCalls: 0,
       errors: 0,
     };
+    Object.defineProperty(scan, 'collectAI', { value: true });
     this.lastError = null;
     try {
       for (const [name, connector] of Object.entries(this.connectors)) {
@@ -158,10 +306,10 @@ export class Pipeline {
               cursor = result.cursor;
               if (!cursor) break;
               if (page === 2) partial = true;
-              await this.sleep(1100);
+              await this.sleep(s.requestDelaySec * 1000);
             }
             if (this.stopped) break;
-            await this.sleep(1100);
+            await this.sleep(s.requestDelaySec * 1000);
           }
           d.sources[name] = {
             checkedAt: now,
@@ -189,18 +337,66 @@ export class Pipeline {
           scan.errors++;
         }
       }
-      for (const post of d.posts
-        .filter((p) => p.verdict === 'pending_ai' && p.retryAt <= now)
-        .slice(0, s.maxAiPerScan)) {
-        if (this.stopped || scan.aiCalls >= s.maxAiPerScan) break;
-        const rules = classify(post, s, now);
-        post.rules = rules;
-        if (rules.verdict !== 'lead') {
-          post.verdict = rules.verdict;
-          post.reason = rules.reason;
+      const pending = d.posts.filter((p) => p.verdict === 'pending_ai' && (p.retryAt || 0) <= now);
+      const eligible = [];
+      for (const post of pending) {
+        post.rules = classify(post, s, now);
+        if (post.rules.verdict !== 'lead') {
+          post.verdict = post.rules.verdict;
+          post.reason = post.rules.reason;
           continue;
         }
-        await this.decide(post, s, scan, now);
+        eligible.push(post);
+      }
+      await this.store.save(); // Persist candidates before any paid model call.
+      if (s.aiMode === 'batch' && s.aiEnabled) {
+        for (
+          let i = 0;
+          i < eligible.length &&
+          scan.aiCalls < s.maxAiPerScan &&
+          !this.stopped &&
+          !(this.store.data.aiRetryAt > this.now());
+          i += s.aiBatchSize
+        ) {
+          const group = eligible.slice(i, i + s.aiBatchSize);
+          scan.aiCalls++;
+          try {
+            const results = await this.aiBatch(group, s);
+            for (const post of group) await this.decide(post, s, scan, now, results.get(post.id));
+          } catch (e) {
+            if (e.retryAfter || e.permanent)
+              this.store.data.aiRetryAt =
+                this.now() + Math.max(e.permanent ? 3600000 : 60000, e.retryAfter || 0);
+            for (const post of group) {
+              post.verdict = 'pending_ai';
+              post.reason = 'AI unavailable: ' + safeError(e);
+              post.retryAt = now + Math.max(60000, e.retryAfter || 0);
+            }
+            scan.errors++;
+            if (e.retryAfter || e.permanent) break;
+          }
+          await this.store.save();
+        }
+      } else {
+        let cursor = 0,
+          halted = false;
+        const worker = async () => {
+          while (
+            cursor < eligible.length &&
+            !this.stopped &&
+            !halted &&
+            (!s.aiEnabled || !(this.store.data.aiRetryAt > this.now())) &&
+            (!s.aiEnabled || scan.aiCalls < s.maxAiPerScan)
+          ) {
+            const post = eligible[cursor++];
+            await this.decide(post, s, scan, now);
+            if (post.aiBlocked) halted = true;
+            delete post.aiBlocked;
+          }
+        };
+        await Promise.all(
+          Array.from({ length: s.aiMode === 'parallel' ? s.aiConcurrency : 1 }, worker),
+        );
       }
       await this.deliver(s, scan, now);
       d.lastScanAt = now;
@@ -248,8 +444,13 @@ export class Pipeline {
       review: 'new',
     };
     d.posts.push(post);
-    if (rules.verdict === 'lead') await this.decide(post, s, scan, now);
-    else if (rules.verdict === 'competitor') {
+    if (rules.verdict === 'lead') {
+      if (s.aiEnabled && scan.collectAI) {
+        post.verdict = 'pending_ai';
+        post.retryAt = now;
+        post.reason = 'Waiting for AI';
+      } else await this.decide(post, s, scan, now);
+    } else if (rules.verdict === 'competitor') {
       scan.competitors++;
       d.totals.competitors++;
     } else {
@@ -257,17 +458,17 @@ export class Pipeline {
       d.totals.excluded++;
     }
   }
-  async decide(post, s, scan, now) {
+  async decide(post, s, scan, now, supplied) {
     if (s.aiEnabled) {
-      if (scan.aiCalls >= s.maxAiPerScan) {
+      if (!supplied && scan.aiCalls >= s.maxAiPerScan) {
         post.verdict = 'pending_ai';
         post.reason = 'Waiting for next AI budget';
         post.retryAt = now + 60000;
         return;
       }
-      scan.aiCalls++;
+      if (!supplied) scan.aiCalls++;
       try {
-        post.ai = await this.ai(post, post.rules, s);
+        post.ai = supplied || (await this.ai(post, post.rules, s));
         post.verdict = post.ai.verdict;
         post.reason = post.ai.reason;
         delete post.retryAt;
@@ -275,6 +476,10 @@ export class Pipeline {
         post.verdict = 'pending_ai';
         post.reason = 'AI unavailable: ' + safeError(e);
         post.retryAt = now + Math.max(60000, e.retryAfter || 0);
+        if (e.retryAfter || e.permanent)
+          this.store.data.aiRetryAt =
+            this.now() + Math.max(e.permanent ? 3600000 : 60000, e.retryAfter || 0);
+        post.aiBlocked = !!(e.retryAfter || e.permanent);
         scan.errors++;
         return;
       }
@@ -294,6 +499,9 @@ export class Pipeline {
     } else if (post.verdict === 'competitor') {
       scan.competitors++;
       this.store.data.totals.competitors++;
+    } else if (!post.acceptedAt) {
+      scan.excluded++;
+      this.store.data.totals.excluded++;
     }
   }
   async deliver(s, scan, now) {

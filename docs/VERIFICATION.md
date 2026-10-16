@@ -23,3 +23,13 @@ Date: 2026-10-16. Node.js 24; isolated Delta node 0.4.1 official Linux x64 binar
 - Delivery is at-least-once. Telegram/network ambiguity can produce duplicates after a crash; exactly-once delivery is not possible with Bot API sendMessage alone.
 
 The GitHub release workflows repeat automated tests before building packages. The official catalog records the downloaded release asset's SHA-256, not an assumed locally generated checksum.
+
+## 0.1.2 / Web 0.6.1 verification
+
+- 60 Leads tests, 49 Web server tests and 26 Web frontend tests (135 total); TypeScript/Vite build and EN/RU catalog parity checks pass.
+- Controlled provider responses verify bounded concurrency, exact request budgets, reordered JSON batch mapping and rejection of missing/duplicate/foreign IDs. AI cooldown is shared across candidates/scans and survives restart; key/URL/model changes reset it.
+- Four composable profiles and every nonempty combination are validated against the settings parser. Browser tests check that a custom prompt is unchecked by default and survives applying a merged profile; expanding/editing does not resize horizontally.
+- Real Delta 0.4.1 on two isolated nodes: Web on the first, Leads registered on the second, including a disabled older local installation. Discovery uses the live remote schema; metric calls, tables, actions and selected-node reads succeed. Removing incoming admin trust rejects delegated access. No automatic trust change is part of the product.
+- Real MCP HTTP profile: nested settings schemas, scoped peer reads/actions, denied unlisted methods/wrong nodes and successful revocation.
+- RU/EN desktop 1440px and mobile 390px: full-width form, bounded fields, compact icon clearing, profile diff modal and themed expansion editor remain inside the viewport. Generated dashboard issued nine successful preset metric requests without browser errors.
+- Validation helpers are exercised with controlled AI/Telegram responses. This patch does not claim a live check of the user's masked model key, production endpoint, Reddit account permissions or current Telegram credentials, nor a production deployment to the user's VPS/computer.

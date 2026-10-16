@@ -83,7 +83,7 @@ for (const [key, label] of [
 ])
   add('Reddit', key, 'secret', label);
 add('Reddit', 'redditUserAgent', 'string', 'Reddit descriptive user agent', {
-  default: 'delta-leads/0.1.0 (personal lead research; configure contact)',
+  default: 'delta-leads/0.1.2 (personal lead research; configure contact)',
   help: 'Set a descriptive user agent identifying your app and contact. Reddit can require approved API access.',
 });
 add('X', 'xQueries', 'string', 'X search queries (one per line; empty uses shared queries)', {
@@ -150,6 +150,52 @@ add('Notifications', 'maxTelegramPerScan', 'number', 'Maximum Telegram sends per
   max: 50,
   step: 1,
 });
+add('Reddit', 'requestDelaySec', 'number', 'Pause between source requests', {
+  default: 6,
+  min: 2,
+  max: 120,
+  step: 1,
+  unit: 's',
+});
+add('AI verdict', 'aiMode', 'select', 'Processing mode', {
+  default: 'sequential',
+  options: [
+    { value: 'sequential', label: 'Sequential' },
+    { value: 'parallel', label: 'Parallel requests' },
+    { value: 'batch', label: 'JSON batches' },
+  ],
+});
+add('AI verdict', 'aiConcurrency', 'number', 'Parallel requests', {
+  default: 3,
+  min: 1,
+  max: 8,
+  step: 1,
+});
+add('AI verdict', 'aiBatchSize', 'number', 'Posts per JSON batch', {
+  default: 5,
+  min: 1,
+  max: 10,
+  step: 1,
+});
+add('AI verdict', 'aiTimeoutSec', 'number', 'AI request timeout', {
+  default: 25,
+  min: 5,
+  max: 120,
+  step: 1,
+  unit: 's',
+});
+add('AI verdict', 'aiJsonMode', 'boolean', 'Send JSON response_format (disable if unsupported)', {
+  default: true,
+});
+add('Pipeline', 'activeProfiles', 'multiselect', 'Selected profiles', {
+  default: ['automation', 'web', 'bots'],
+  options: [
+    { value: 'automation', label: 'AI automation' },
+    { value: 'web', label: 'Websites & landing pages' },
+    { value: 'bots', label: 'Bots & scripts' },
+    { value: 'art', label: 'Illustration & design' },
+  ],
+});
 export const secrets = fields.filter((f) => f.type === 'secret').map((f) => f.key);
 export const defaults = Object.fromEntries(fields.map((f) => [f.key, f.default ?? '']));
 export const lines = (v) =>
@@ -182,9 +228,7 @@ export function parseSettings(values, current = defaults) {
     if (f.type === 'select' && !f.options.some((o) => o.value === value)) bad('Invalid ' + key);
     if (
       f.type === 'multiselect' &&
-      (!Array.isArray(value) ||
-        !value.length ||
-        value.some((v) => !f.options.some((o) => o.value === v)))
+      (!Array.isArray(value) || value.some((v) => !f.options.some((o) => o.value === v)))
     )
       bad('Invalid ' + key);
     next[key] = value;

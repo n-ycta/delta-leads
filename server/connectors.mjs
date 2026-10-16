@@ -155,7 +155,7 @@ export class RedditConnector {
     u.search = new URLSearchParams({
       q: query,
       sort: 'new',
-      t: 'week',
+      t: s.freshnessHours <= 24 ? 'day' : 'week',
       limit: '100',
       ...(subs.length ? { restrict_sr: 'on' } : {}),
       ...(cursor ? { after: cursor } : {}),

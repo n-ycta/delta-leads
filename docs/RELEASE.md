@@ -1,12 +1,11 @@
-Personal RU/EN lead discovery for Delta. Requires Delta Web 0.6.0+ (UI contract 1.5).
+Delta Leads 0.1.2 — reliability, diagnostics and composable search profiles. Update Delta Web to **0.6.1+** for the complete UI.
 
-- Reddit RSS/Atom, public JSON and OAuth; optional official X/Threads search adapters.
-- Configurable buyer/service/seller rules, freshness, check intervals, language/author filters and crosspost deduplication.
-- Optional OpenAI-compatible AI verdict with confidence/reason/model; errors hold candidates, never silently approve them.
-- Web inbox, declarative result tables, metric dashboard, manual review and preview.
-- Telegram inline post link, persistent delivery queue, visible errors, rate-limit backoff and per-scan budgets.
-- Configured secrets are never echoed; private atomic local state; no core changes.
+- Select and combine AI automation, websites/landing pages, bots/scripts and illustration/design profiles. Preview each changed field, preserve custom keywords, and explicitly opt in before replacing your AI prompt. Save remains a separate action.
+- AI processing: sequential requests, bounded parallel requests or strict ID-mapped JSON batches. Request/batch limits, timeouts and optional provider JSON mode are configurable. Invalid results fail closed; errors never approve leads.
+- Shared persistent AI cooldown and source request pacing respect rate limits. Reddit 429 is shown as a pause, not a malformed notification. No automatic access-method switching or access-control bypass.
+- Validate AI endpoint, authentication, model and structured output using current form values without saving. Validate Telegram identity/chat access without sending; a separate Send action tests delivery.
+- Background Diagnostics samples the first query/page of each enabled source over the last 24h; optional one-candidate AI test, no lead saves or Telegram notifications. This is not an exhaustive crawl.
+- MCP discovery now has typed settings/actions/inputs. Web 0.6.1 discovers installed plugin methods with explicit least-privilege scopes and routes remote metrics correctly.
+- RU/EN, compact forms, themed multiline editor, icon-only secret clear, and plugin dashboard classification are handled generically by Web.
 
-X/Threads require your own authorized API access. AI accuracy and production delivery depend on your provider, credentials and settings; no precision guarantee. No prospect outreach is sent. See README for installation, API, retention and at-least-once delivery limitations.
-
-Patch 0.1.1: complete metric-result envelope, dashboard time presets, automatic bucket sizing and previous-period comparison.
+Provider/API access and working credentials are still required. No claim of measured precision, exhaustive coverage or exactly-once delivery. Existing private settings/history are retained. No automatic contact with prospects.

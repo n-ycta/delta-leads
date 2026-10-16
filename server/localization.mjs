@@ -1,4 +1,12 @@
 const labels = {
+  activeProfiles: 'Выбранные профили',
+  requestDelaySec: 'Пауза между запросами источников',
+  aiMode: 'Режим обработки',
+  aiConcurrency: 'Параллельных запросов',
+  aiBatchSize: 'Постов в JSON-пакете',
+  aiTimeoutSec: 'Таймаут запроса AI',
+  aiJsonMode: 'Параметр JSON response_format — отключите, если провайдер не поддерживает',
+
   notificationLocale: 'Язык сообщений Telegram',
   enabled: 'Фоновый поиск включён',
   intervalSec: 'Интервал проверки',
@@ -62,6 +70,7 @@ const columns = {
   value: 'Количество',
   checkedAt: 'Проверен',
   count: 'Получено',
+  candidates: 'Совпадений',
   partial: 'Неполный охват',
   error: 'Ошибка',
   retryAt: 'Повторная попытка',
@@ -69,7 +78,18 @@ const columns = {
 export function ruLocalization(ui) {
   return {
     description:
-      'Личный поиск заказчиков RU/EN: Reddit RSS/JSON/OAuth, X и Threads через API, точные правила, вердикт нейросети и уведомления в Telegram и Web. Общие таблицы требуют Delta Web 0.6.0+.',
+      'Личный поиск заказчиков RU/EN: Reddit RSS/JSON/OAuth, X и Threads через API, точные правила, вердикт нейросети и уведомления в Telegram и Web. Общие таблицы требуют Delta Web 0.6.1+.',
+    settingsProfiles: {
+      items: ui.settingsProfiles?.items.map((p) => ({
+        id: p.id,
+        label: {
+          automation: 'AI-автоматизация',
+          web: 'Сайты и лендинги',
+          bots: 'Боты и скрипты',
+          art: 'Иллюстрация и дизайн',
+        }[p.id],
+      })),
+    },
     settings: ui.settings.map((f) => ({
       key: f.key,
       label: labels[f.key] || f.label,
@@ -102,15 +122,23 @@ export function ruLocalization(ui) {
     actions: ui.actions.map((a) => ({
       id: a.id,
       label: {
-        scan_now: 'Проверить сейчас',
-        test_telegram: 'Тест Telegram',
-        preview: 'Проверить правила на тексте',
-        feedback: 'Оценить лид',
+        scan_now: 'Проверить',
+        validate_ai: 'AI',
+        validate_telegram: 'Telegram',
+        diagnose: 'Диагностика',
+        test_telegram: 'Отправить',
+        preview: 'Правила',
+        feedback: 'Оценить',
       }[a.id],
       ...(a.description
         ? {
             description:
               {
+                validate_ai:
+                  'Проверить endpoint, ключ, модель и JSON-ответ на тестовом посте. Используются поля формы без сохранения.',
+                validate_telegram: 'Проверить бота и доступ к чату без отправки сообщения.',
+                diagnose:
+                  'Выборка за сутки: первый запрос и страница каждого источника, без уведомлений. Результаты — в диагностике.',
                 scan_now:
                   'Запустить фоновую проверку. Ход работы и ошибки видны в таблице источников.',
                 test_telegram: 'Отправить одно тестовое сообщение указанному получателю.',
@@ -125,6 +153,7 @@ export function ruLocalization(ui) {
             text: 'Текст поста',
             id: 'ID поста (источник:id)',
             review: 'Ваша оценка',
+            ai: 'Проверить AI — один кандидат на источник',
           }[f.key] || f.label,
         ...(f.options
           ? {
@@ -139,6 +168,7 @@ export function ruLocalization(ui) {
     views: ui.views.map((v) => ({
       id: v.id,
       label: {
+        diagnostics: 'Диагностика · выборка за сутки',
         posts: 'Посты и вердикты',
         statistics: 'Счётчики за всё время',
         sources: 'Доступность и охват источников',
@@ -287,6 +317,13 @@ export function messageFor(text, locale = 'en') {
 function optionRu(value, fallback) {
   return (
     {
+      automation: 'AI-автоматизация',
+      web: 'Сайты и лендинги',
+      bots: 'Боты и скрипты',
+      art: 'Иллюстрация и дизайн',
+      sequential: 'Последовательно',
+      parallel: 'Параллельные запросы',
+      batch: 'JSON-пакеты',
       ru: 'Русский',
       en: 'Английский',
       rss: 'Публичный RSS / Atom',

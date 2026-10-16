@@ -11,6 +11,12 @@ const pipeline = await new Pipeline(
 ).init();
 const controller = new AbortController();
 const handlers = {
+  'leads.validate_ai': ({ values, _locale }) => pipeline.validate('ai', values, _locale),
+  'leads.validate_telegram': ({ values, _locale }) =>
+    pipeline.validate('telegram', values, _locale),
+  'leads.diagnose': (args) => pipeline.startDiagnostic(args),
+  'leads.diagnostics': ({ _locale }) => pipeline.diagnosticStatus(_locale),
+  'leads.profiles': ({ ids }) => pipeline.profilePreview(ids),
   'leads.status': () => pipeline.status(),
   'leads.settings': ({ values }) =>
     values === undefined ? pipeline.status().settings : pipeline.configure(values),
