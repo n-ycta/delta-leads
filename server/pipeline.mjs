@@ -419,30 +419,80 @@ export class Pipeline {
       total: Object.keys(this.store.data.sources).length,
     };
   }
-  metrics({ metricId, range, stepMs = 3600000, aggregation = 'sum' }) {
+  metrics(query, _locale = 'en') {
+    const {
+      metricId,
+      range,
+      aggregation = 'sum',
+      compare = 'none',
+      groupBy,
+      filters,
+    } = query || {};
+    const spans = {
+      '15m': 900000,
+      '1h': 3600000,
+      '6h': 21600000,
+      '24h': 86400000,
+      '7d': 604800000,
+      '30d': 2592000000,
+      '90d': 7776000000,
+    };
+    const to = range?.preset ? this.now() : range?.to;
+    const from = range?.preset ? to - spans[range.preset] : range?.from;
     if (
       !['scanned', 'leads', 'competitors', 'excluded', 'sent'].includes(metricId) ||
-      !range ||
-      !Number.isFinite(range.from) ||
-      !Number.isFinite(range.to) ||
-      range.to <= range.from ||
-      !Number.isFinite(stepMs) ||
-      stepMs < 1000 ||
-      (range.to - range.from) / stepMs > 10000 ||
-      aggregation !== 'sum'
+      !Number.isFinite(from) ||
+      !Number.isFinite(to) ||
+      from < 0 ||
+      to <= from ||
+      to - from > 366 * 86400000 ||
+      aggregation !== 'sum' ||
+      !['none', 'previous'].includes(compare) ||
+      groupBy ||
+      Object.values(filters || {}).some((v) => !Array.isArray(v) || v.length)
     )
       throw new DeltaError('bad_request', 'Invalid metric query');
-    const points = [];
-    for (let t = range.from; t < range.to; t += stepMs)
-      points.push({
-        t,
-        v: this.store.data.scans
-          .filter((s) => s.ts >= t && s.ts < Math.min(t + stepMs, range.to))
-          .reduce((n, s) => n + (s[metricId] || 0), 0),
-      });
+    const step = query.stepMs ?? Math.max(60000, Math.ceil((to - from) / 120 / 60000) * 60000);
+    if (!Number.isInteger(step) || step < 1000 || Math.ceil((to - from) / step) > 2000)
+      throw new DeltaError('bad_request', 'Invalid metric query');
+    const label = statusLabel(
+      metricId === 'sent' ? 'sentCount' : metricId === 'excluded' ? 'excludedCount' : metricId,
+      _locale,
+    );
+    const rows = this.store.data.scans;
+    const sum = (a, b) =>
+      rows.filter((s) => s.ts >= a && s.ts < b).reduce((n, s) => n + (s[metricId] || 0), 0);
+    const build = (origin, shift = 0) =>
+      Array.from({ length: Math.ceil((to - from) / step) }, (_, i) => ({
+        t: origin + i * step + shift,
+        v: sum(origin + i * step, Math.min(origin + (i + 1) * step, origin + to - from)),
+      }));
+    const points = build(from),
+      previous = compare === 'previous' ? sum(from - (to - from), from) : null;
     return {
-      series: [{ key: metricId, label: metricId, points }],
-      summary: { current: points.reduce((n, p) => n + p.v, 0) },
+      query,
+      from,
+      to,
+      stepMs: step,
+      generatedAt: this.now(),
+      series: [{ key: metricId, label, points }],
+      ...(compare === 'previous'
+        ? {
+            compare: [
+              {
+                key: metricId + '__prev',
+                label: label + (_locale === 'ru' ? ' · предыдущий период' : ' · previous period'),
+                points: build(from - (to - from), to - from),
+              },
+            ],
+          }
+        : {}),
+      summary: {
+        current: sum(from, to),
+        previous,
+        min: Math.min(...points.map((p) => p.v)),
+        max: Math.max(...points.map((p) => p.v)),
+      },
     };
   }
   preview({ text = '', title = '', _locale = 'en' } = {}) {

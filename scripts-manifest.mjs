@@ -64,7 +64,7 @@ const actions = [
 const ui = {
   id: 'dev.delta.leads',
   name: 'Delta Leads',
-  version: '0.1.0',
+  version: '0.1.1',
   contract: '^1.5.0',
   publisher: 'n-ycta',
   description:
@@ -168,7 +168,7 @@ const names = [
 ];
 const manifest = {
   id: 'leads',
-  version: '0.1.0',
+  version: '0.1.1',
   description: ui.description,
   metadata: { ui },
   capabilities: names.map((name) => ({

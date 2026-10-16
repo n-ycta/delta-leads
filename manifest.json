@@ -1,12 +1,12 @@
 {
   "id": "leads",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.0+.",
   "metadata": {
     "ui": {
       "id": "dev.delta.leads",
       "name": "Delta Leads",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "contract": "^1.5.0",
       "publisher": "n-ycta",
       "description": "Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.0+.",

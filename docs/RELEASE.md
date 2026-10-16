@@ -8,3 +8,5 @@ Personal RU/EN lead discovery for Delta. Requires Delta Web 0.6.0+ (UI contract 
 - Configured secrets are never echoed; private atomic local state; no core changes.
 
 X/Threads require your own authorized API access. AI accuracy and production delivery depend on your provider, credentials and settings; no precision guarantee. No prospect outreach is sent. See README for installation, API, retention and at-least-once delivery limitations.
+
+Patch 0.1.1: complete metric-result envelope, dashboard time presets, automatic bucket sizing and previous-period comparison.

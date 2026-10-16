@@ -230,3 +230,33 @@ test('localized tables preserve machine-readable verdicts and translate human la
   assert.match(ru.reason, /Заказчик/);
   assert.equal(p.stats({ _locale: 'ru' }).rows[0].metric, 'Проверено уникальных постов');
 });
+
+test('real dashboard time presets, automatic buckets and previous-period result contract', async (t) => {
+  const p = await fixture(t);
+  p.store.data.scans = [
+    { ts: now - 1000, leads: 2 },
+    { ts: now - 86400000 - 1000, leads: 3 },
+  ];
+  for (const preset of ['15m', '1h', '6h', '24h', '7d', '30d', '90d']) {
+    const r = p.metrics({ metricId: 'leads', range: { preset }, compare: 'previous' });
+    assert(Number.isFinite(r.from));
+    assert(Number.isFinite(r.to));
+    assert(Number.isFinite(r.generatedAt));
+    assert(r.stepMs >= 60000);
+    assert(r.series[0].points.length <= 2000);
+    assert.equal(r.query.range.preset, preset);
+    assert(Array.isArray(r.compare[0].points));
+  }
+  const r = p.metrics({ metricId: 'leads', range: { preset: '24h' }, compare: 'previous' });
+  assert.equal(r.summary.current, 2);
+  assert.equal(r.summary.previous, 3);
+  assert.equal(r.series[0].points[0].t, r.compare[0].points[0].t);
+  for (const q of [
+    { range: { preset: 'bad' } },
+    { stepMs: 0 },
+    { stepMs: 1 },
+    { aggregation: 'avg' },
+    { groupBy: 'unknown' },
+  ])
+    assert.throws(() => p.metrics({ metricId: 'leads', range: { preset: '24h' }, ...q }));
+});
