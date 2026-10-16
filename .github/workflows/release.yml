@@ -1,0 +1,25 @@
+name: Release plugin package
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npm test && npm run check
+      - run: tar -czf delta-leads.tar.gz manifest.json package.json package-lock.json server presets LICENSE NOTICE
+      - run: sha256sum delta-leads.tar.gz > SHA256SUMS
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAG=v$(node -p "require('./package.json').version")
+          gh release create "$TAG" --title "Delta Leads $TAG" --notes-file docs/RELEASE.md
+          gh release upload "$TAG" delta-leads.tar.gz SHA256SUMS

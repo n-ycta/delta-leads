@@ -1,0 +1,87 @@
+# Delta Leads
+
+Temporary personal lead-search plugin for [Delta](https://github.com/n-ycta/delta). No plugin-specific code in Delta Web and no core patch. Designed to split into `delta-connect` and `delta-flow` later.
+
+**RU/EN buyers, not service ads.** Searches automation, websites/landing pages, bots, scripts, scrapers and API integrations. Combines explicit buyer-intent phrases with service keywords, excludes sellers/competitors, checks freshness, deduplicates posts and optionally asks an AI model for a final verdict.
+
+## Install / quick start
+
+1. Update **Delta Web to 0.6.0+** (UI contract 1.5).
+2. In **Plugins → Delta Leads → Install**, choose your node. The official catalog installs a checksum-verified release and a scoped supervisor component. No manually pasted Delta admin token is needed.
+3. Open **Settings**. The RU/EN freelance preset is already loaded. Default source: Reddit RSS, every 5 minutes, posts no older than 24 hours. Searching runs on the node even when the browser is closed.
+4. In **Telegram**, set your **bot token** and **recipient chat ID**, then enable delivery. Open the bot and press **Start** first. Use **Test Telegram** in the action menu. Bot credentials are secret inputs, never bundled in the plugin or returned in API responses.
+5. In **AI verdict**, optionally enable your OpenAI-compatible provider, set its base URL/model/key, your service profile and confidence threshold. A local model can use `http://127.0.0.1:11434/v1`. Public post text is sent to this configured provider only if AI is enabled.
+6. Run **Check now**. In the overview, inspect **Posts & verdicts** and **Source health & coverage**. The scan action returns immediately; scanning itself continues in the background.
+7. Open the generated plugin dashboard for unique checked posts, accepted leads, competitors, excluded posts and Telegram delivery over time. The console inbox receives accepted leads independently of Telegram.
+
+API equivalent: `delta call packages.install --json '{"id":"dev.delta.leads"}'`. Then manage the plugin through capabilities; all private-content and configuration endpoints require owner/admin or an explicit `admin:leads.*` grant.
+
+## Как настроить под себя
+
+- **queries**: до 12 запросов, по одному на строку. Это синтаксис выбранной сети, не универсальный поисковый язык.
+- **services / buyerTerms / sellerTerms / excludedTerms**: редактируемые списки фраз. Английские короткие слова ограничены границами слов; русские основы допускают окончания.
+- **subreddits**: стартовый набор `forhire, slavelabour, freelance_forhire, Entrepreneur, smallbusiness`. Пустое значение — поиск по всему Reddit. Это не гарантия доступности конкретного сообщества.
+- **freshnessHours**: 1–168 часов; **intervalSec**: от 60 секунд. Интервал — минимальная пауза между началами проверок; длительные проверки не перекрываются.
+- **xQueries / threadsQueries**: собственные запросы для API этих сетей. Threads использует обычные ключевые фразы, не Reddit Boolean DSL.
+- **profile / aiMinConfidence**: ваши услуги и порог AI. Низкая уверенность → `uncertain`, сбой модели → `pending_ai`, а не сообщение в Telegram.
+- **Review a lead**: сохраните `relevant`, `false_positive`, `contacted` или `won`, указав ID из таблицы. Это ручная обратная связь, не скрытое самообучение.
+- **Test matching rules**: проверка текста без отправки и без вызова AI. AI-вердикт для реальных кандидатов виден отдельно.
+
+## Sources / access methods
+
+| Source | Methods | Requirements / limits |
+| --- | --- | --- |
+| Reddit | Public RSS/Atom, public JSON, OAuth API | Public access can be restricted by Reddit/network. OAuth requires your app credentials and approved access where required. A refresh token is optional for user-authorized flows; otherwise client credentials are used. |
+| X | Official `/2/tweets/search/recent` API | Bearer token and an API plan/permission permitting recent search. At most the API's recent-search window. Not a promise of free scraping. |
+| Threads | Official `/v1.0/keyword_search` API | User access token with `threads_basic` and approved `threads_keyword_search` for other users' public posts. Without approval, search coverage may be restricted to your own posts. |
+
+- No cookie/password collection, CAPTCHA circumvention, browser automation or automatic auth-denial fallback.
+- Rate limits/auth/network failures are visible in Sources and retried with backoff. An access method is explicitly selected; switching methods requires you to change settings.
+- Maximum three pages per query, 100 posts per page where supported. RSS is a bounded feed, not an exhaustive crawl. `partial` reports hitting a pagination cap or a failed source. A successful scan does **not** guarantee every social post was indexed.
+- Sources may return edited/deleted content, unsupported search syntax or empty results. Posts outside the selected age window are dropped locally as well.
+
+Official docs: [Reddit API](https://www.reddit.com/dev/api/), [OAuth](https://github.com/reddit-archive/reddit/wiki/OAuth2), [X recent search](https://docs.x.com/x-api/posts/recent-search), [Threads keyword search](https://developers.facebook.com/docs/threads/keyword-search), [Telegram sendMessage](https://core.telegram.org/bots/api#sendmessage).
+
+## Accuracy and delivery
+
+A rule lead needs **both** buyer intent and a matching service. Seller phrases win over buyer phrases. AI only analyzes rule-passing candidates; it cannot turn an irrelevant/seller post into a lead. The default rule threshold is 75 and AI confidence is 0.85. These are conservative starting settings, **not measured precision or a guarantee of clients**. Tune the preset against your own reviewed results.
+
+AI reasons, confidence and model are visible in the table and Telegram. `pending_ai` is retried subject to freshness and the per-scan AI budget. Accepted leads are available in the web inbox even when Telegram is disabled. Only newly accepted leads while Telegram is enabled are queued for delivery; enabling it does not flood your chat with historical leads. Queued stale leads expire. Sent messages are not normally resent; permanent Telegram 4xx errors remain visibly `failed`, and transient failures retry with backoff.
+
+**Delivery is at-least-once, not exactly-once**: network ambiguity or a crash between Telegram acceptance and local persistence can duplicate a message. No automatic outreach, comments or DMs to prospects are sent.
+
+## API
+
+All calls use the core `/v1/call` boundary. Component ID: `leads`, UI ID: `dev.delta.leads`.
+
+| Capability | Input / output |
+| --- | --- |
+| `leads.status` | Sanitized settings, configured-secret key names, running state, source health, lifetime counters and notices |
+| `leads.settings` | Omit `values` to read; otherwise partial `{values:{...}}` update. Empty secret string explicitly clears it. |
+| `leads.scan_now` | Starts a scan if not already running; returns `{accepted,running}` |
+| `leads.list` | `{verdict?,search?,offset?,limit?}` → `{rows,total}`; max 100 rows |
+| `leads.statistics`, `leads.sources` | Generic `{rows,total}` tables |
+| `leads.notifications` | Up to 100 recent accepted lead notifications; no secrets |
+| `leads.metrics_query` | `{query:{metricId,range:{from,to},stepMs?,aggregation:"sum"}}` → series/summary |
+| `leads.preview` | `{title,text}` → deterministic rules verdict; no external side effects |
+| `leads.feedback` | `{id,review}` → saved manual review |
+| `leads.test_telegram` | One test message to the configured recipient |
+
+## State and security
+
+`DATA_DIR` contains private `settings.json` and `state.json`. Writes use serialized atomic replacement, owner-only files (0600) and directory (0700) on POSIX. On Windows use a private user-profile directory and appropriate account ACLs. Secrets are stored locally in plaintext for runtime use, **not encrypted at rest**; do not put this directory in Git or expose it via HTTP. Raw response bodies and credentials are not logged or returned as errors. State keeps at most 5,000 post records, 30,000 seen keys and 3,000 scan buckets, within the selected 1–90 day retention. Lifetime counters survive pruning; chart history is retained scan history, so older/high-frequency buckets may be truncated by the cap.
+
+The plugin is a standard Delta process, not a sandbox: it needs outbound HTTPS and local data-directory write access. It does not have storage/system/token administration privileges. AI base URLs are owner-configured; HTTPS is required except for localhost HTTP. Do not point the AI client at an untrusted endpoint or give it a provider key that endpoint should not receive.
+
+## Development
+
+Node 22+; recommended Node 24.
+
+```sh
+npm ci
+npm test
+# Manual development: provide DELTA_URL, scoped DELTA_TOKEN and private DATA_DIR.
+npm start
+```
+
+See [architecture and review](docs/ARCHITECTURE.md) and [verification](docs/VERIFICATION.md). No real bot/provider credentials belong in tests or fixtures.
