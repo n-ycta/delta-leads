@@ -1,4 +1,4 @@
-# Verification / Проверки
+# Verification
 
 Date: 2026-10-16. Node.js 24; isolated Delta node 0.4.1 official Linux x64 binary (release SHA-256 verified). No user production node was modified during local tests.
 

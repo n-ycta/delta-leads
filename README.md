@@ -1,6 +1,6 @@
 # Delta Leads
 
-**[English](README.md) · [Русский](README.ru.md)**
+
 
 Temporary personal lead-search plugin for [Delta](https://github.com/n-ycta/delta). No plugin-specific code in Delta Web and no core patch. Designed to split into `delta-connect` and `delta-flow` later.
 
@@ -105,8 +105,9 @@ Additional APIs: `leads.validate_ai({values?})`, `leads.validate_telegram({value
 
 Settings show only the controls relevant to the selected integration/mode. Parallel request count and JSON batch size are mutually exclusive. Switching modes preserves saved values and the form draft. The generated dashboard uses the existing Table widget with clickable HTTPS post titles, newest-first records, verdicts and Telegram status; saved layouts are not reset.
 
-### Telegram formatting / Формат уведомлений
+### Telegram formatting
 
-Messages preserve post paragraphs and use escaped Telegram HTML, a quoted excerpt, readable localized time and an inline Open/Открыть link. Set `notificationTimezone` to an IANA zone such as `Asia/Yekaterinburg` (default `UTC`).
+Messages preserve post paragraphs and use escaped Telegram HTML, a quoted excerpt, readable localized time and an inline Open link. Set `notificationTimezone` to an IANA zone such as `Asia/Yekaterinburg` (default `UTC`).
 
-Уведомления сохраняют абзацы, используют безопасное HTML-форматирование, цитату и кнопку «Открыть». Часовой пояс задаётся параметром `notificationTimezone`, например `Asia/Yekaterinburg`; по умолчанию — `UTC`. Ошибка одного сообщения не останавливает остальные; ошибки доступа к боту/чату приостанавливают очередь до исправления подключения.
+
+Messages preserve paragraphs, use escaped HTML, and show the configured IANA timezone. A malformed notification does not stop other queued leads; bot/chat access failures pause delivery until the connection is corrected.
