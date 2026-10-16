@@ -1,6 +1,6 @@
 {
   "name": "delta-leads",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "Personal RU/EN lead discovery for the Delta node",

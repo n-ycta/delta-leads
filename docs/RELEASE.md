@@ -1,11 +1,8 @@
-Delta Leads 0.1.2 — reliability, diagnostics and composable search profiles. Update Delta Web to **0.6.1+** for the complete UI.
+Delta Leads 0.1.3 — persistent delivery, clickable lead tables and conditional settings. Update Delta Web to **0.6.2+** first (UI contract 1.6).
 
-- Select and combine AI automation, websites/landing pages, bots/scripts and illustration/design profiles. Preview each changed field, preserve custom keywords, and explicitly opt in before replacing your AI prompt. Save remains a separate action.
-- AI processing: sequential requests, bounded parallel requests or strict ID-mapped JSON batches. Request/batch limits, timeouts and optional provider JSON mode are configurable. Invalid results fail closed; errors never approve leads.
-- Shared persistent AI cooldown and source request pacing respect rate limits. Reddit 429 is shown as a pause, not a malformed notification. No automatic access-method switching or access-control bypass.
-- Validate AI endpoint, authentication, model and structured output using current form values without saving. Validate Telegram identity/chat access without sending; a separate Send action tests delivery.
-- Background Diagnostics samples the first query/page of each enabled source over the last 24h; optional one-candidate AI test, no lead saves or Telegram notifications. This is not an exhaustive crawl.
-- MCP discovery now has typed settings/actions/inputs. Web 0.6.1 discovers installed plugin methods with explicit least-privilege scopes and routes remote metrics correctly.
-- RU/EN, compact forms, themed multiline editor, icon-only secret clear, and plugin dashboard classification are handled generically by Web.
-
-Provider/API access and working credentials are still required. No claim of measured precision, exhaustive coverage or exactly-once delivery. Existing private settings/history are retained. No automatic contact with prospects.
+- Every accepted lead is persisted in the delivery queue, including leads discovered before Telegram was configured. Enabling Telegram picks up still-fresh unsent leads; legacy `disabled` records migrate automatically. Expired leads are not sent, and recorded sent messages are not replayed.
+- Independent delivery scheduler runs even when discovery is disabled, slow or waiting on a Reddit cooldown. One send worker, durable retries, shared Telegram Retry-After cooldown, and visible waiting/retry/failure states.
+- Authentication failures pause delivery. Changing Telegram connection settings allows a retry of authentication-failed leads. Delivery remains at-least-once: network ambiguity or a crash can still cause a duplicate.
+- A New leads table uses Web's existing Table widget: newest-first posts, clickable post titles, source, verdict, AI confidence/reason and delivery state. Existing saved generated dashboards gain the table without layout reset.
+- Declarative settings branches: AI parallelism only in parallel mode, batch size only in batch mode, OAuth fields only in OAuth mode, and disabled integrations hide irrelevant controls. Hidden values remain saved and return on switching back.
+- Existing private settings, custom prompts, profiles and history are retained. No automatic outreach or access-control bypass.

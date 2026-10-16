@@ -11,7 +11,7 @@ test('package manifest and dependency lock versions agree; no token-admin/storag
   assert.equal(l.version, p.version);
   assert.equal(l.packages[''].version, p.version);
   assert.equal(m.id, 'leads');
-  assert.equal(m.metadata.ui.contract, '^1.5.0');
+  assert.equal(m.metadata.ui.contract, '^1.6.0');
   assert(m.capabilities.every((c) => c.admin));
   assert(m.metadata.ui.views.every((v) => v.capability.startsWith('leads.')));
   assert(

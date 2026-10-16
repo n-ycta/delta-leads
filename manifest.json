@@ -1,15 +1,15 @@
 {
   "id": "leads",
-  "version": "0.1.2",
-  "description": "Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.1+.",
+  "version": "0.1.3",
+  "description": "Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.2+.",
   "metadata": {
     "ui": {
       "id": "dev.delta.leads",
       "name": "Delta Leads",
-      "version": "0.1.2",
-      "contract": "^1.5.0",
+      "version": "0.1.3",
+      "contract": "^1.6.0",
       "publisher": "n-ycta",
-      "description": "Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.1+.",
+      "description": "Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.2+.",
       "icon": "radar",
       "category": "productivity",
       "homepage": "https://github.com/n-ycta/delta-leads",
@@ -238,33 +238,77 @@
               "value": "oauth",
               "label": "OAuth API"
             }
-          ]
+          ],
+          "visibleWhen": {
+            "key": "redditEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Reddit",
           "key": "subreddits",
           "type": "string",
           "label": "Subreddits (comma separated; empty = all Reddit)",
-          "default": "forhire,slavelabour,freelance_forhire,Entrepreneur,smallbusiness"
+          "default": "forhire,slavelabour,freelance_forhire,Entrepreneur,smallbusiness",
+          "visibleWhen": {
+            "key": "redditEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Reddit",
           "key": "redditClientId",
           "type": "string",
           "label": "Reddit OAuth client ID",
-          "default": ""
+          "default": "",
+          "visibleWhen": {
+            "all": [
+              {
+                "key": "redditEnabled",
+                "equals": true
+              },
+              {
+                "key": "redditMode",
+                "equals": "oauth"
+              }
+            ]
+          }
         },
         {
           "group": "Reddit",
           "key": "redditClientSecret",
           "type": "secret",
-          "label": "Reddit OAuth client secret"
+          "label": "Reddit OAuth client secret",
+          "visibleWhen": {
+            "all": [
+              {
+                "key": "redditEnabled",
+                "equals": true
+              },
+              {
+                "key": "redditMode",
+                "equals": "oauth"
+              }
+            ]
+          }
         },
         {
           "group": "Reddit",
           "key": "redditRefreshToken",
           "type": "secret",
-          "label": "Reddit OAuth refresh token (optional)"
+          "label": "Reddit OAuth refresh token (optional)",
+          "visibleWhen": {
+            "all": [
+              {
+                "key": "redditEnabled",
+                "equals": true
+              },
+              {
+                "key": "redditMode",
+                "equals": "oauth"
+              }
+            ]
+          }
         },
         {
           "group": "Reddit",
@@ -272,7 +316,11 @@
           "type": "string",
           "label": "Reddit descriptive user agent",
           "default": "delta-leads/0.1.2 (personal lead research; configure contact)",
-          "help": "Set a descriptive user agent identifying your app and contact. Reddit can require approved API access."
+          "help": "Set a descriptive user agent identifying your app and contact. Reddit can require approved API access.",
+          "visibleWhen": {
+            "key": "redditEnabled",
+            "equals": true
+          }
         },
         {
           "group": "X",
@@ -280,7 +328,11 @@
           "type": "string",
           "label": "X search queries (one per line; empty uses shared queries)",
           "default": "",
-          "multiline": true
+          "multiline": true,
+          "visibleWhen": {
+            "key": "xEnabled",
+            "equals": true
+          }
         },
         {
           "group": "X",
@@ -293,7 +345,11 @@
           "group": "X",
           "key": "xBearerToken",
           "type": "secret",
-          "label": "X API bearer token"
+          "label": "X API bearer token",
+          "visibleWhen": {
+            "key": "xEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Threads",
@@ -301,7 +357,11 @@
           "type": "string",
           "label": "Threads keyword queries (one phrase per line)",
           "default": "need a website\nlooking for developer\nautomation help\ntelegram bot\nнужен сайт\nищу разработчика\nнужен бот\nавтоматизация",
-          "multiline": true
+          "multiline": true,
+          "visibleWhen": {
+            "key": "threadsEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Threads",
@@ -314,7 +374,11 @@
           "group": "Threads",
           "key": "threadsAccessToken",
           "type": "secret",
-          "label": "Threads user access token"
+          "label": "Threads user access token",
+          "visibleWhen": {
+            "key": "threadsEnabled",
+            "equals": true
+          }
         },
         {
           "group": "AI verdict",
@@ -330,20 +394,32 @@
           "type": "string",
           "label": "OpenAI-compatible API base URL",
           "default": "https://api.openai.com/v1",
-          "help": "HTTPS, or HTTP on localhost for a local model. Example: http://127.0.0.1:11434/v1"
+          "help": "HTTPS, or HTTP on localhost for a local model. Example: http://127.0.0.1:11434/v1",
+          "visibleWhen": {
+            "key": "aiEnabled",
+            "equals": true
+          }
         },
         {
           "group": "AI verdict",
           "key": "aiApiKey",
           "type": "secret",
-          "label": "Model API key (optional for local models)"
+          "label": "Model API key (optional for local models)",
+          "visibleWhen": {
+            "key": "aiEnabled",
+            "equals": true
+          }
         },
         {
           "group": "AI verdict",
           "key": "aiModel",
           "type": "string",
           "label": "Model name",
-          "default": "gpt-4.1-mini"
+          "default": "gpt-4.1-mini",
+          "visibleWhen": {
+            "key": "aiEnabled",
+            "equals": true
+          }
         },
         {
           "group": "AI verdict",
@@ -353,7 +429,11 @@
           "default": 0.85,
           "min": 0.5,
           "max": 1,
-          "step": 0.01
+          "step": 0.01,
+          "visibleWhen": {
+            "key": "aiEnabled",
+            "equals": true
+          }
         },
         {
           "group": "AI verdict",
@@ -361,7 +441,11 @@
           "type": "string",
           "label": "Your services / ideal customer",
           "default": "I take paid freelance projects: business automation, websites and landing pages, Telegram/Discord bots, scripts, scrapers and API integrations. RU/EN clients. I want posts from buyers requesting a solution, not sellers advertising services, showcases, tutorials or full-time employment.",
-          "multiline": true
+          "multiline": true,
+          "visibleWhen": {
+            "key": "aiEnabled",
+            "equals": true
+          }
         },
         {
           "group": "AI verdict",
@@ -371,7 +455,11 @@
           "default": 20,
           "min": 1,
           "max": 100,
-          "step": 1
+          "step": 1,
+          "visibleWhen": {
+            "key": "aiEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Notifications",
@@ -388,7 +476,11 @@
               "value": "en",
               "label": "English"
             }
-          ]
+          ],
+          "visibleWhen": {
+            "key": "telegramEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Notifications",
@@ -401,7 +493,11 @@
           "group": "Notifications",
           "key": "telegramBotToken",
           "type": "secret",
-          "label": "Telegram bot token"
+          "label": "Telegram bot token",
+          "visibleWhen": {
+            "key": "telegramEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Notifications",
@@ -409,7 +505,11 @@
           "type": "string",
           "label": "Telegram recipient chat ID",
           "default": "",
-          "help": "Your chat or group ID. Open the bot and press Start first. This is the recipient, not the sender ID."
+          "help": "Your chat or group ID. Open the bot and press Start first. This is the recipient, not the sender ID.",
+          "visibleWhen": {
+            "key": "telegramEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Notifications",
@@ -419,7 +519,11 @@
           "default": 10,
           "min": 1,
           "max": 50,
-          "step": 1
+          "step": 1,
+          "visibleWhen": {
+            "key": "telegramEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Reddit",
@@ -430,7 +534,11 @@
           "min": 2,
           "max": 120,
           "step": 1,
-          "unit": "s"
+          "unit": "s",
+          "visibleWhen": {
+            "key": "redditEnabled",
+            "equals": true
+          }
         },
         {
           "group": "AI verdict",
@@ -451,7 +559,11 @@
               "value": "batch",
               "label": "JSON batches"
             }
-          ]
+          ],
+          "visibleWhen": {
+            "key": "aiEnabled",
+            "equals": true
+          }
         },
         {
           "group": "AI verdict",
@@ -461,7 +573,19 @@
           "default": 3,
           "min": 1,
           "max": 8,
-          "step": 1
+          "step": 1,
+          "visibleWhen": {
+            "all": [
+              {
+                "key": "aiEnabled",
+                "equals": true
+              },
+              {
+                "key": "aiMode",
+                "equals": "parallel"
+              }
+            ]
+          }
         },
         {
           "group": "AI verdict",
@@ -471,7 +595,19 @@
           "default": 5,
           "min": 1,
           "max": 10,
-          "step": 1
+          "step": 1,
+          "visibleWhen": {
+            "all": [
+              {
+                "key": "aiEnabled",
+                "equals": true
+              },
+              {
+                "key": "aiMode",
+                "equals": "batch"
+              }
+            ]
+          }
         },
         {
           "group": "AI verdict",
@@ -482,14 +618,22 @@
           "min": 5,
           "max": 120,
           "step": 1,
-          "unit": "s"
+          "unit": "s",
+          "visibleWhen": {
+            "key": "aiEnabled",
+            "equals": true
+          }
         },
         {
           "group": "AI verdict",
           "key": "aiJsonMode",
           "type": "boolean",
           "label": "Send JSON response_format (disable if unsupported)",
-          "default": true
+          "default": true,
+          "visibleWhen": {
+            "key": "aiEnabled",
+            "equals": true
+          }
         },
         {
           "group": "Pipeline",
@@ -618,6 +762,59 @@
         }
       ],
       "views": [
+        {
+          "id": "leads",
+          "label": "New leads",
+          "capability": "leads.list",
+          "refreshSec": 15,
+          "dashboard": {
+            "args": {
+              "verdict": "lead"
+            },
+            "limit": 10
+          },
+          "columns": [
+            {
+              "key": "createdAt",
+              "label": "Published",
+              "type": "datetime"
+            },
+            {
+              "key": "title",
+              "label": "Post",
+              "type": "link",
+              "width": 300,
+              "urlKey": "url"
+            },
+            {
+              "key": "source",
+              "label": "Source",
+              "type": "text"
+            },
+            {
+              "key": "verdictLabel",
+              "label": "Verdict",
+              "type": "badge"
+            },
+            {
+              "key": "deliveryLabel",
+              "label": "Telegram",
+              "type": "text"
+            },
+            {
+              "key": "confidence",
+              "label": "AI confidence",
+              "type": "number",
+              "width": 120
+            },
+            {
+              "key": "reason",
+              "label": "Reason",
+              "type": "text",
+              "width": 320
+            }
+          ]
+        },
         {
           "id": "diagnostics",
           "label": "Diagnostics · last 24h sample",
@@ -924,7 +1121,7 @@
       ],
       "localizations": {
         "ru": {
-          "description": "Личный поиск заказчиков RU/EN: Reddit RSS/JSON/OAuth, X и Threads через API, точные правила, вердикт нейросети и уведомления в Telegram и Web. Общие таблицы требуют Delta Web 0.6.1+.",
+          "description": "Личный поиск заказчиков RU/EN: Reddit RSS/JSON/OAuth, X и Threads через API, точные правила, вердикт нейросети и уведомления в Telegram и Web. Общие таблицы требуют Delta Web 0.6.2+.",
           "settingsProfiles": {
             "items": [
               {
@@ -1326,6 +1523,40 @@
             }
           ],
           "views": [
+            {
+              "id": "leads",
+              "label": "Новые лиды",
+              "columns": [
+                {
+                  "key": "createdAt",
+                  "label": "Опубликован"
+                },
+                {
+                  "key": "title",
+                  "label": "Пост"
+                },
+                {
+                  "key": "source",
+                  "label": "Источник"
+                },
+                {
+                  "key": "verdictLabel",
+                  "label": "Вердикт"
+                },
+                {
+                  "key": "deliveryLabel",
+                  "label": "Telegram"
+                },
+                {
+                  "key": "confidence",
+                  "label": "Уверенность ИИ"
+                },
+                {
+                  "key": "reason",
+                  "label": "Причина"
+                }
+              ]
+            },
             {
               "id": "diagnostics",
               "label": "Диагностика · выборка за сутки",

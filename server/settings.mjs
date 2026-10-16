@@ -196,6 +196,44 @@ add('Pipeline', 'activeProfiles', 'multiselect', 'Selected profiles', {
     { value: 'art', label: 'Illustration & design' },
   ],
 });
+// Declarative UI branches; the node retains inactive values when omitted by the form.
+for (const field of fields) {
+  if (field.key === 'aiConcurrency')
+    field.visibleWhen = {
+      all: [
+        { key: 'aiEnabled', equals: true },
+        { key: 'aiMode', equals: 'parallel' },
+      ],
+    };
+  else if (field.key === 'aiBatchSize')
+    field.visibleWhen = {
+      all: [
+        { key: 'aiEnabled', equals: true },
+        { key: 'aiMode', equals: 'batch' },
+      ],
+    };
+  else if (field.group === 'AI verdict' && field.key !== 'aiEnabled')
+    field.visibleWhen = { key: 'aiEnabled', equals: true };
+  else if (['redditClientId', 'redditClientSecret', 'redditRefreshToken'].includes(field.key))
+    field.visibleWhen = {
+      all: [
+        { key: 'redditEnabled', equals: true },
+        { key: 'redditMode', equals: 'oauth' },
+      ],
+    };
+  else if (field.group === 'Reddit' && field.key !== 'redditEnabled')
+    field.visibleWhen = { key: 'redditEnabled', equals: true };
+  else if (['xQueries', 'xBearerToken'].includes(field.key))
+    field.visibleWhen = { key: 'xEnabled', equals: true };
+  else if (['threadsQueries', 'threadsAccessToken'].includes(field.key))
+    field.visibleWhen = { key: 'threadsEnabled', equals: true };
+  else if (
+    ['telegramBotToken', 'telegramChatId', 'maxTelegramPerScan', 'notificationLocale'].includes(
+      field.key,
+    )
+  )
+    field.visibleWhen = { key: 'telegramEnabled', equals: true };
+}
 export const secrets = fields.filter((f) => f.type === 'secret').map((f) => f.key);
 export const defaults = Object.fromEntries(fields.map((f) => [f.key, f.default ?? '']));
 export const lines = (v) =>

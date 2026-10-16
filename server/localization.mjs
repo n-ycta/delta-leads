@@ -78,7 +78,7 @@ const columns = {
 export function ruLocalization(ui) {
   return {
     description:
-      'Личный поиск заказчиков RU/EN: Reddit RSS/JSON/OAuth, X и Threads через API, точные правила, вердикт нейросети и уведомления в Telegram и Web. Общие таблицы требуют Delta Web 0.6.1+.',
+      'Личный поиск заказчиков RU/EN: Reddit RSS/JSON/OAuth, X и Threads через API, точные правила, вердикт нейросети и уведомления в Telegram и Web. Общие таблицы требуют Delta Web 0.6.2+.',
     settingsProfiles: {
       items: ui.settingsProfiles?.items.map((p) => ({
         id: p.id,
@@ -169,6 +169,7 @@ export function ruLocalization(ui) {
       id: v.id,
       label: {
         diagnostics: 'Диагностика · выборка за сутки',
+        leads: 'Новые лиды',
         posts: 'Посты и вердикты',
         statistics: 'Счётчики за всё время',
         sources: 'Доступность и охват источников',
@@ -210,6 +211,7 @@ export const statuses = {
     irrelevant: 'Irrelevant',
     excluded: 'Excluded',
     stale: 'Too old',
+    waiting: 'Waiting for Telegram',
     pending: 'Queued',
     retry: 'Retry scheduled',
     sending: 'Sending',
@@ -239,6 +241,7 @@ export const statuses = {
     irrelevant: 'Не подходит',
     excluded: 'Исключён',
     stale: 'Устарел',
+    waiting: 'Ожидает подключения Telegram',
     pending: 'В очереди',
     retry: 'Запланирован повтор',
     sending: 'Отправляется',

@@ -94,11 +94,11 @@ actions.push(
 const ui = {
   id: 'dev.delta.leads',
   name: 'Delta Leads',
-  version: '0.1.2',
-  contract: '^1.5.0',
+  version: '0.1.3',
+  contract: '^1.6.0',
   publisher: 'n-ycta',
   description:
-    'Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.1+.',
+    'Personal RU/EN lead discovery: Reddit RSS/JSON/OAuth, optional X/Threads APIs, precise buyer rules, AI verdicts and Telegram + web notifications. Generic declarative views require Delta Web 0.6.2+.',
   icon: 'radar',
   category: 'productivity',
   homepage: 'https://github.com/n-ycta/delta-leads',
@@ -124,6 +124,22 @@ const ui = {
   settings: fields,
   actions,
   views: [
+    {
+      id: 'leads',
+      label: 'New leads',
+      capability: 'leads.list',
+      refreshSec: 15,
+      dashboard: { args: { verdict: 'lead' }, limit: 10 },
+      columns: cols([
+        ['createdAt', 'Published', 'datetime'],
+        ['title', 'Post', 'link', 'url'],
+        ['source', 'Source'],
+        ['verdictLabel', 'Verdict', 'badge'],
+        ['deliveryLabel', 'Telegram'],
+        ['confidence', 'AI confidence', 'number'],
+        ['reason', 'Reason'],
+      ]),
+    },
     {
       id: 'diagnostics',
       label: 'Diagnostics · last 24h sample',
@@ -293,7 +309,7 @@ const params = {
 };
 const manifest = {
   id: 'leads',
-  version: '0.1.2',
+  version: '0.1.3',
   description: ui.description,
   metadata: { ui },
   capabilities: names.map((name) => ({

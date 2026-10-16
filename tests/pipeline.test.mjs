@@ -140,6 +140,7 @@ test('Telegram transient failure queues retry; permanent failure is visible', as
     throw new SourceError('http_403', { permanent: true });
   };
   d.nextAt = 0;
+  p.store.data.telegramRetryAt = 0;
   await p.scan();
   assert.equal(p.list().rows[0].delivery, 'failed');
 });
@@ -226,7 +227,7 @@ test('localized tables preserve machine-readable verdicts and translate human la
   assert.equal(ru.verdict, 'lead');
   assert.equal(ru.verdictLabel, 'Лид');
   assert.equal(en.verdictLabel, 'Lead');
-  assert.equal(ru.deliveryLabel, 'Отключено');
+  assert.equal(ru.deliveryLabel, 'Ожидает подключения Telegram');
   assert.match(ru.reason, /Заказчик/);
   assert.equal(p.stats({ _locale: 'ru' }).rows[0].metric, 'Проверено уникальных постов');
 });
@@ -259,4 +260,106 @@ test('real dashboard time presets, automatic buckets and previous-period result 
     { groupBy: 'unknown' },
   ])
     assert.throws(() => p.metrics({ metricId: 'leads', range: { preset: '24h' }, ...q }));
+});
+
+test('leads accepted before Telegram setup are durably queued and delivered with search disabled', async (t) => {
+  let sent = 0;
+  const p = await fixture(t, {
+    telegram: async () => ({ messageId: ++sent }),
+    connectors: { reddit: { search: async () => ({ posts: [post(), post('2')], cursor: null }) } },
+  });
+  await p.scan();
+  assert.equal(p.status().delivery.queued, 2);
+  assert.equal(p.list().rows[0].delivery, 'waiting');
+  await p.configure({
+    enabled: false,
+    telegramEnabled: true,
+    telegramBotToken: '123:secret',
+    telegramChatId: '42',
+  });
+  await Promise.all([p.drain(), p.drain()]);
+  assert.equal(sent, 2);
+  await p.drain();
+  assert.equal(sent, 2);
+  assert.equal(p.status().totals.sent, 2);
+  assert.equal(
+    p.store.data.scans.reduce((n, s) => n + s.sent, 0),
+    2,
+  );
+});
+test('legacy disabled queue migrates; stale leads expire and recorded sent are never replayed', async (t) => {
+  const p = await fixture(t, {
+    connectors: {
+      reddit: { search: async () => ({ posts: [post(), post('2'), post('3')], cursor: null }) },
+    },
+  });
+  await p.scan();
+  for (const row of p.store.data.posts) row.delivery.state = 'disabled';
+  p.store.data.posts[1].createdAt = now - 100 * 3600000;
+  p.store.data.posts[2].delivery = { state: 'sent', sentAt: now, attempts: 1 };
+  await p.store.save();
+  let sent = 0;
+  const restarted = await new Pipeline(p.dir, {
+    now: () => now,
+    telegram: async () => ({ messageId: ++sent }),
+    sleep: async () => {},
+  }).init();
+  await restarted.configure({
+    telegramEnabled: true,
+    telegramBotToken: '123:secret',
+    telegramChatId: '42',
+  });
+  await restarted.drain();
+  await restarted.drain();
+  assert.equal(sent, 1);
+  assert.equal(restarted.store.data.posts[1].delivery.state, 'expired');
+});
+test('Telegram retry-after pauses the whole queue across restarts, not only one post', async (t) => {
+  let sent = 0;
+  const p = await fixture(t, {
+    telegram: async () => {
+      sent++;
+      throw new SourceError('http_429', { retryAfter: 300000 });
+    },
+    connectors: { reddit: { search: async () => ({ posts: [post(), post('2')], cursor: null }) } },
+  });
+  await p.configure({
+    telegramEnabled: true,
+    telegramBotToken: '123:secret',
+    telegramChatId: '42',
+  });
+  await p.scan();
+  await p.drain();
+  assert.equal(sent, 1);
+  const restarted = await new Pipeline(p.dir, {
+    now: () => now,
+    telegram: async () => {
+      sent++;
+      return {};
+    },
+    sleep: async () => {},
+  }).init();
+  await restarted.drain();
+  assert.equal(sent, 1);
+});
+test('independent delivery scheduler drains while discovery is disabled', async (t) => {
+  let sent = 0;
+  const p = await fixture(t, {
+    telegram: async () => ({ messageId: ++sent }),
+    connectors: { reddit: { search: async () => ({ posts: [post()], cursor: null }) } },
+  });
+  await p.scan();
+  await p.configure({
+    enabled: false,
+    telegramEnabled: true,
+    telegramBotToken: '123:secret',
+    telegramChatId: '42',
+  });
+  p.start();
+  try {
+    for (let i = 0; i < 40 && !sent; i++) await new Promise((r) => setTimeout(r, 50));
+    assert.equal(sent, 1);
+  } finally {
+    await p.stop();
+  }
 });

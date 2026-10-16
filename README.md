@@ -8,7 +8,7 @@ Temporary personal lead-search plugin for [Delta](https://github.com/n-ycta/delt
 
 ## Install / quick start
 
-1. Update **Delta Web to 0.6.1+** (UI contract 1.5).
+1. Update **Delta Web to 0.6.2+** (UI contract 1.5).
 2. In **Plugins → Delta Leads → Install**, choose your node. The official catalog installs a checksum-verified release and a scoped supervisor component. No manually pasted Delta admin token is needed.
 3. Open **Settings**. The RU/EN freelance preset is already loaded. Default source: Reddit RSS, every 5 minutes, posts no older than 24 hours. Searching runs on the node even when the browser is closed.
 4. In **Telegram**, set your **bot token** and **recipient chat ID**, then enable delivery. Open the bot and press **Start** first. Use **Send** in the action menu. Bot credentials are secret inputs, never bundled in the plugin or returned in API responses.
@@ -49,7 +49,7 @@ Official docs: [Reddit API](https://www.reddit.com/dev/api/), [OAuth](https://gi
 
 A rule lead needs **both** buyer intent and a matching service. Seller phrases win over buyer phrases. AI only analyzes rule-passing candidates; it cannot turn an irrelevant/seller post into a lead. The default rule threshold is 75 and AI confidence is 0.85. These are conservative starting settings, **not measured precision or a guarantee of clients**. Tune the preset against your own reviewed results.
 
-AI reasons, confidence and model are visible in the table and Telegram. `pending_ai` is retried subject to freshness and the per-scan AI budget. Accepted leads are available in the web inbox even when Telegram is disabled. Only newly accepted leads while Telegram is enabled are queued for delivery; enabling it does not flood your chat with historical leads. Queued stale leads expire. Sent messages are not normally resent; permanent Telegram 4xx errors remain visibly `failed`, and transient failures retry with backoff.
+AI reasons, confidence and model are visible in the table and Telegram. `pending_ai` is retried subject to freshness and the per-scan AI budget. Accepted leads are available in the web inbox even when Telegram is disabled. Every accepted lead is queued durably, even before Telegram is configured. Enabling delivery migrates legacy disabled records and sends still-fresh unsent leads. An independent worker drains the queue even if discovery is disabled or a source is rate-limited. Telegram Retry-After pauses the whole queue; changing connection settings clears an authentication pause. Queued stale leads expire. Sent messages are not normally resent; permanent Telegram 4xx errors remain visibly `failed`, and transient failures retry with backoff.
 
 **Delivery is at-least-once, not exactly-once**: network ambiguity or a crash between Telegram acceptance and local persistence can duplicate a message. No automatic outreach, comments or DMs to prospects are sent.
 
@@ -100,3 +100,7 @@ Choose AI **sequential**, **parallel** (1–8 concurrent single-post requests), 
 **Diagnose** is a read-only last-24h sample: first query, first page, per enabled source, optionally one AI candidate per source. It shares the scan lock, respects cooldowns and does not save leads or send notifications. Watch **Diagnostics** for results. Normal scheduled searches remain controlled separately by Enabled.
 
 Additional APIs: `leads.validate_ai({values?})`, `leads.validate_telegram({values?})`, `leads.diagnose({ai?:boolean})`, `leads.diagnostics({_locale?})`, `leads.profiles({ids:[...]})` (preview only; apply selected values with leads.settings). Validation returns `{ok, ...}` with a safe diagnostic code/message on failure. Omitted secret values reuse saved credentials; an explicit empty secret clears it on Save. Full parameter schemas are published in the core catalog for MCP clients.
+
+### Conditional controls and lead table (Web 0.6.2+)
+
+Settings show only the controls relevant to the selected integration/mode. Parallel request count and JSON batch size are mutually exclusive. Switching modes preserves saved values and the form draft. The generated dashboard uses the existing Table widget with clickable HTTPS post titles, newest-first records, verdicts and Telegram status; saved layouts are not reset.

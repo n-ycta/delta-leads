@@ -37,6 +37,8 @@ export class Pipeline {
     this.lastError = null;
     this.configTail = Promise.resolve();
     this.timer = null;
+    this.deliveryTimer = null;
+    this.delivering = false;
     this.stopped = false;
   }
   async init() {
@@ -48,6 +50,8 @@ export class Pipeline {
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
     }
+    this.reconcileQueue();
+    await this.store.save();
     return this;
   }
   async validate(kind, values = {}, locale = 'en') {
@@ -185,7 +189,23 @@ export class Pipeline {
       const aiChanged = ['aiApiKey', 'aiBaseUrl', 'aiModel'].some(
         (key) => next[key] !== this.settings[key],
       );
+      const telegramChanged = ['telegramBotToken', 'telegramChatId', 'telegramEnabled'].some(
+        (key) => next[key] !== this.settings[key],
+      );
       this.settings = next;
+      if (telegramChanged) {
+        delete this.store.data.telegramRetryAt;
+        delete this.store.data.telegramBlocked;
+        for (const p of this.store.data.posts)
+          if (
+            p.verdict === 'lead' &&
+            p.delivery?.state === 'failed' &&
+            ['http_401', 'http_403'].includes(p.delivery.error)
+          )
+            p.delivery.state = 'pending';
+      }
+      this.reconcileQueue();
+      await this.store.save();
       if (aiChanged) {
         delete this.store.data.aiRetryAt;
         await this.store.save();
@@ -204,6 +224,16 @@ export class Pipeline {
       lastError: this.lastError,
       aiRetryAt: this.store.data.aiRetryAt || 0,
       totals: d.totals,
+      delivery: {
+        running: this.delivering,
+        retryAt: d.telegramRetryAt || 0,
+        blocked: d.telegramBlocked || false,
+        queued: d.posts.filter(
+          (p) =>
+            p.verdict === 'lead' &&
+            ['waiting', 'pending', 'retry', 'sending'].includes(p.delivery?.state),
+        ).length,
+      },
       sources: d.sources,
       notices: [
         ...(this.lastError
@@ -490,12 +520,13 @@ export class Pipeline {
     if (post.verdict === 'lead' && !post.acceptedAt) {
       post.acceptedAt = now;
       post.delivery = {
-        state: s.telegramEnabled ? 'pending' : 'disabled',
+        state: s.telegramEnabled ? 'pending' : 'waiting',
         attempts: 0,
         nextAt: now,
       };
       scan.leads++;
       this.store.data.totals.leads++;
+      await this.store.save(); // Persist acceptance before discovery/AI continues.
     } else if (post.verdict === 'competitor') {
       scan.competitors++;
       this.store.data.totals.competitors++;
@@ -504,52 +535,116 @@ export class Pipeline {
       this.store.data.totals.excluded++;
     }
   }
-  async deliver(s, scan, now) {
-    if (!s.telegramEnabled) return;
-    let attempts = 0;
-    for (const p of this.store.data.posts.filter(
-      (p) =>
-        p.verdict === 'lead' &&
-        ['pending', 'retry', 'sending'].includes(p.delivery.state) &&
-        (!p.delivery.nextAt || p.delivery.nextAt <= now),
-    )) {
-      if (this.stopped || attempts >= s.maxTelegramPerScan) break;
-      if (now - p.createdAt > s.freshnessHours * 3600000) {
+  reconcileQueue(now = this.now()) {
+    for (const p of this.store.data.posts) {
+      if (
+        p.verdict !== 'lead' ||
+        !p.acceptedAt ||
+        !p.delivery ||
+        p.delivery.state === 'sent' ||
+        p.delivery.sentAt
+      )
+        continue;
+      if (!['disabled', 'waiting', 'pending', 'retry', 'sending'].includes(p.delivery.state))
+        continue;
+      if (now - p.createdAt > this.settings.freshnessHours * 3600000) {
         p.delivery.state = 'expired';
         continue;
       }
-      attempts++;
-      p.delivery = {
-        ...p.delivery,
-        state: 'sending',
-        attempts: p.delivery.attempts + 1,
-        lastAttemptAt: now,
-      };
-      await this.store.save();
-      try {
-        const result = await this.telegram(p, s);
-        p.delivery = { ...p.delivery, state: 'sent', sentAt: this.now(), ...result };
-        scan.sent++;
-        this.store.data.totals.sent++;
-        await this.store.save();
-      } catch (e) {
-        p.delivery = {
-          ...p.delivery,
-          state: e.permanent ? 'failed' : 'retry',
-          error: safeError(e),
-          nextAt:
-            now +
-            Math.max(
-              e.retryAfter || 0,
-              Math.min(3600000, 60000 * 2 ** Math.min(p.delivery.attempts - 1, 6)),
-            ),
-        };
-        await this.store.save();
-        if (e.retryAfter || e.permanent) break;
-      }
-      await this.sleep(1100);
+      if (['disabled', 'waiting'].includes(p.delivery.state))
+        p.delivery.state = this.settings.telegramEnabled ? 'pending' : 'waiting';
     }
   }
+  async drain() {
+    const scan = {
+      ts: this.now(),
+      scanned: 0,
+      leads: 0,
+      competitors: 0,
+      excluded: 0,
+      sent: 0,
+      aiCalls: 0,
+      errors: 0,
+    };
+    await this.deliver(this.settings, scan, scan.ts);
+    // Delivery runs independently from discovery; don't advance lastScanAt or count discoveries twice.
+    if (scan.sent) {
+      this.store.data.scans.push(scan);
+      await this.store.save();
+    }
+    return { sent: scan.sent, ...this.status().delivery };
+  }
+  async deliver(_settings, scan, _now) {
+    if (this.delivering) return;
+    this.delivering = true;
+    try {
+      this.reconcileQueue();
+      if (
+        !this.settings.telegramEnabled ||
+        this.store.data.telegramBlocked ||
+        this.store.data.telegramRetryAt > this.now()
+      )
+        return;
+      let attempts = 0;
+      for (const p of this.store.data.posts) {
+        const s = this.settings,
+          now = this.now();
+        if (this.stopped || !s.telegramEnabled || attempts >= s.maxTelegramPerScan) break;
+        if (
+          p.verdict !== 'lead' ||
+          p.delivery?.sentAt ||
+          !['pending', 'retry', 'sending'].includes(p.delivery?.state) ||
+          p.delivery.nextAt > now
+        )
+          continue;
+        if (now - p.createdAt > s.freshnessHours * 3600000) {
+          p.delivery.state = 'expired';
+          continue;
+        }
+        attempts++;
+        p.delivery = {
+          ...p.delivery,
+          state: 'sending',
+          attempts: (p.delivery.attempts || 0) + 1,
+          lastAttemptAt: now,
+        };
+        // Claim is durable before the external side effect. Crashed sending is retried (at-least-once).
+        await this.store.save();
+        try {
+          const result = await this.telegram(p, s);
+          p.delivery = { ...p.delivery, ...result, state: 'sent', sentAt: this.now() };
+          delete p.delivery.error;
+          scan.sent++;
+          this.store.data.totals.sent++;
+          await this.store.save();
+        } catch (e) {
+          p.delivery = {
+            ...p.delivery,
+            state: e.permanent ? 'failed' : 'retry',
+            error: safeError(e),
+            nextAt:
+              now +
+              Math.max(
+                e.retryAfter || 0,
+                Math.min(3600000, 60000 * 2 ** Math.min(p.delivery.attempts - 1, 6)),
+              ),
+          };
+          if (e.retryAfter) this.store.data.telegramRetryAt = p.delivery.nextAt;
+          if (e.permanent) this.store.data.telegramBlocked = true;
+          await this.store.save();
+          if (e.retryAfter || e.permanent) break;
+        }
+        await this.sleep(1100);
+      }
+    } finally {
+      try {
+        await this.store.save();
+      } finally {
+        this.delivering = false;
+      }
+    }
+  }
+
   list({ offset = 0, limit = 30, verdict = '', search = '', _locale = 'en' } = {}) {
     if (
       !Number.isInteger(offset) ||
@@ -748,11 +843,22 @@ export class Pipeline {
       if (!this.stopped) this.timer = setTimeout(tick, 10000);
     };
     this.timer = setTimeout(tick, 1000);
+    const deliveryTick = async () => {
+      if (this.stopped) return;
+      try {
+        await this.drain();
+      } catch (e) {
+        this.lastError = safeError(e);
+      }
+      if (!this.stopped) this.deliveryTimer = setTimeout(deliveryTick, 5000);
+    };
+    this.deliveryTimer = setTimeout(deliveryTick, 1000);
   }
   async stop() {
     this.stopped = true;
     clearTimeout(this.timer);
-    while (this.running) await this.sleep(50);
+    clearTimeout(this.deliveryTimer);
+    while (this.running || this.delivering) await wait(50);
     await this.store.tail;
   }
 }
